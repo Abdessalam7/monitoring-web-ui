@@ -19,6 +19,51 @@ function flattenData(data) {
   return rows;
 }
 
+function KpiCards({ rows }) {
+  const total  = rows.length;
+  const ok     = rows.filter((r) => r.ok).length;
+  const ko     = total - ok;
+  const uptime = total > 0 ? Math.round((ok / total) * 100) : 0;
+
+  return (
+    <div className="kpi-bar">
+      <div className="kpi-card">
+        <span className="kpi-value">{total}</span>
+        <span className="kpi-label">Total checks</span>
+      </div>
+      <div className="kpi-card kpi-ok">
+        <span className="kpi-value">{ok}</span>
+        <span className="kpi-label">OK</span>
+      </div>
+      <div className={`kpi-card ${ko > 0 ? "kpi-ko" : ""}`}>
+        <span className="kpi-value">{ko}</span>
+        <span className="kpi-label">KO</span>
+      </div>
+      <div className="kpi-card">
+        <span className={`kpi-value ${uptime === 100 ? "kpi-value-ok" : "kpi-value-ko"}`}>
+          {uptime}%
+        </span>
+        <span className="kpi-label">Uptime</span>
+      </div>
+    </div>
+  );
+}
+
+function StatusBanner({ rows }) {
+  if (rows.length === 0) return null;
+  const ko = rows.filter((r) => !r.ok).length;
+  const allOk = ko === 0;
+
+  return (
+    <div className={`status-banner ${allOk ? "banner-ok" : "banner-ko"}`}>
+      <span className="banner-dot" />
+      {allOk
+        ? "All systems operational"
+        : `${ko} incident${ko > 1 ? "s" : ""} detected`}
+    </div>
+  );
+}
+
 export default function App() {
   const [tech, setTech]               = useState("airflow");
   const [rows, setRows]               = useState([]);
@@ -87,6 +132,9 @@ export default function App() {
           <div className="state-box">Loading…</div>
         ) : (
           <>
+            <StatusBanner rows={rows} />
+            <KpiCards rows={rows} />
+
             {generatedAt && (
               <div className="meta-bar">
                 <span>Generated at: <strong>{new Date(generatedAt).toLocaleString()}</strong></span>
