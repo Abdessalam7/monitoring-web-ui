@@ -533,6 +533,102 @@ tbody tr:hover { background: #f0faf5; }
 tbody tr.row-ko { background: rgba(224,53,53,0.03); }
 tbody tr.row-ko:hover { background: rgba(224,53,53,0.07); }
 
+/* ── Section toggle ───────────────────────────────── */
+.section-toggle-bar {
+  margin-bottom: 12px;
+}
+
+.section-toggle-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text-dim);
+  font-family: var(--sans);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 7px 14px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.section-toggle-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.section-toggle-active {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: rgba(0,145,90,0.05);
+}
+
+.history-count {
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--muted);
+  margin-left: 4px;
+}
+
+/* ── Uptime chart ─────────────────────────────────── */
+.uptime-chart-wrap {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px 24px;
+  margin-bottom: 16px;
+  box-shadow: var(--shadow);
+}
+
+.chart-section { margin-bottom: 24px; }
+.chart-section:last-child { margin-bottom: 0; }
+
+.chart-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 4px;
+}
+
+.chart-subtitle {
+  font-size: 11px;
+  color: var(--text-dim);
+  margin-bottom: 8px;
+}
+
+.chart-row {
+  display: flex;
+  gap: 24px;
+}
+
+.chart-half { flex: 1; min-width: 0; }
+
+.chart-empty {
+  text-align: center;
+  padding: 32px;
+  font-size: 13px;
+  color: var(--text-dim);
+  font-style: italic;
+}
+
+.chart-tooltip {
+  background: #1a1f2e;
+  border: none;
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 12px;
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+}
+
+.chart-tooltip-time {
+  color: var(--muted);
+  font-size: 11px;
+  margin-bottom: 4px;
+}
+
 /* ── Metadata ─────────────────────────────────────── */
 .meta-bar {
   display: flex;
