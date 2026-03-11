@@ -101,16 +101,16 @@ function ClientEnvCards({ rows, activeFilter, onFilter }) {
   return (
     <div className="ce-section">
       <div className="ce-group">
-        <span className="ce-group-label">By client</span>
+        <span className="ce-group-label">By environment</span>
         <div className="ce-cards">
-          {clients.map(([name, stats]) => {
-            const isActive = activeFilter?.type === "client" && activeFilter.value === name;
+          {envs.map(([name, stats]) => {
+            const isActive = activeFilter?.type === "env" && activeFilter.value === name;
             const hasKo    = stats.ko > 0;
             return (
               <div
                 key={name}
                 className={`ce-card ${hasKo ? "ce-card-ko" : "ce-card-ok"} ${isActive ? "ce-card-active" : ""}`}
-                onClick={() => onFilter(isActive ? null : { type: "client", value: name })}
+                onClick={() => onFilter(isActive ? null : { type: "env", value: name })}
               >
                 <span className="ce-name">{name}</span>
                 <span className="ce-label">{stats.ok + stats.ko} checks</span>
@@ -125,16 +125,16 @@ function ClientEnvCards({ rows, activeFilter, onFilter }) {
       </div>
 
       <div className="ce-group">
-        <span className="ce-group-label">By environment</span>
+        <span className="ce-group-label">By client</span>
         <div className="ce-cards">
-          {envs.map(([name, stats]) => {
-            const isActive = activeFilter?.type === "env" && activeFilter.value === name;
+          {clients.map(([name, stats]) => {
+            const isActive = activeFilter?.type === "client" && activeFilter.value === name;
             const hasKo    = stats.ko > 0;
             return (
               <div
                 key={name}
                 className={`ce-card ${hasKo ? "ce-card-ko" : "ce-card-ok"} ${isActive ? "ce-card-active" : ""}`}
-                onClick={() => onFilter(isActive ? null : { type: "env", value: name })}
+                onClick={() => onFilter(isActive ? null : { type: "client", value: name })}
               >
                 <span className="ce-name">{name}</span>
                 <span className="ce-label">{stats.ok + stats.ko} checks</span>
