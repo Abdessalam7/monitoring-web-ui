@@ -113,6 +113,7 @@ function ClientEnvCards({ rows, activeFilter, onFilter }) {
                 onClick={() => onFilter(isActive ? null : { type: "client", value: name })}
               >
                 <span className="ce-name">{name}</span>
+                <span className="ce-label">{stats.ok + stats.ko} checks</span>
                 <div className="ce-badges">
                   <span className="ce-badge ce-ok">✓ {stats.ok}</span>
                   {stats.ko > 0 && <span className="ce-badge ce-ko">✗ {stats.ko}</span>}
@@ -136,6 +137,7 @@ function ClientEnvCards({ rows, activeFilter, onFilter }) {
                 onClick={() => onFilter(isActive ? null : { type: "env", value: name })}
               >
                 <span className="ce-name">{name}</span>
+                <span className="ce-label">{stats.ok + stats.ko} checks</span>
                 <div className="ce-badges">
                   <span className="ce-badge ce-ok">✓ {stats.ok}</span>
                   {stats.ko > 0 && <span className="ce-badge ce-ko">✗ {stats.ko}</span>}
