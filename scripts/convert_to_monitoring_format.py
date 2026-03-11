@@ -34,23 +34,8 @@ UNKNOWN_ENV    = "unknown"
 
 
 def extract_instance_id(url: str) -> str:
-    """Extrait l'identifiant d'instance depuis l'URL.
-    Ex: https://astronomer-ap43877-dev-81554669.data... → ap43877
-    """
     match = re.search(r"astronomer-(ap\d+)-", url)
     return match.group(1) if match else url
-
-
-def normalize_heartbeat_key(components: dict, key: str) -> str | None:
-    """Les clés heartbeat varient selon le composant
-    (latest_scheduler_heartbeat, latest_dag_processor_heartbeat, etc.)
-    On retourne la première valeur trouvée.
-    """
-    comp = components.get(key, {})
-    for k, v in comp.items():
-        if "heartbeat" in k:
-            return v
-    return None
 
 
 def all_components_healthy(components: dict) -> bool:
@@ -70,16 +55,12 @@ def build_component(raw: dict, heartbeat_key: str) -> dict:
 
 def convert(raw: dict, tech: str = "airflow") -> dict:
     now = datetime.now(timezone.utc).isoformat()
-
-    # Structure intermédiaire : {client: {env: [checks]}}
     tree: dict[str, dict[str, list]] = {}
-
     tech_data = raw.get(tech, {})
 
     for url, result in tech_data.items():
         instance_id = extract_instance_id(url)
         client, env = INSTANCE_MAPPING.get(instance_id, (UNKNOWN_CLIENT, UNKNOWN_ENV))
-
         tree.setdefault(client, {}).setdefault(env, [])
 
         status     = result.get("status", "ERROR")
@@ -134,7 +115,6 @@ def convert(raw: dict, tech: str = "airflow") -> dict:
 
         tree[client][env].append(check)
 
-    # Sérialisation au format final
     clients = []
     for client_name, envs in sorted(tree.items()):
         environments = []
@@ -142,10 +122,7 @@ def convert(raw: dict, tech: str = "airflow") -> dict:
             environments.append({"name": env_name, "checks": checks})
         clients.append({"name": client_name, "environments": environments})
 
-    return {
-        "generated_at": now,
-        "clients": clients,
-    }
+    return {"generated_at": now, "clients": clients}
 
 
 def main():
