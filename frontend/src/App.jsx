@@ -76,7 +76,7 @@ export default function App() {
   return (
     <div id="root">
       <header className="app-header">
-        <p className="app-title">◈ Smoke <span>Monitor</span></p>
+        <p className="app-title">◈ Datahub v2 <span>Smoke Tests</span></p>
         <TabBar active={tech} onChange={setTech} />
       </header>
 

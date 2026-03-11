@@ -6,5 +6,5 @@ export async function fetchStatus(tech) {
     const err = await res.json().catch(() => ({}));
     throw new Error(err.detail || `HTTP ${res.status}`);
   }
-  return res.json(); // { source, data }
+  return res.json();
 }
