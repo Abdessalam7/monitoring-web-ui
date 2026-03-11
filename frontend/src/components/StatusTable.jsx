@@ -49,7 +49,7 @@ export default function StatusTable({ rows, tech }) {
         </thead>
         <tbody>
           {rows.map((row) => (
-            <tr key={row.id}>
+            <tr key={row.id} className={!row.ok ? "row-ko" : ""}>
               <td className="cell-mono">{row.client}</td>
               <td className="cell-mono">{row.env}</td>
               <td className="cell-label">{row.label}</td>
@@ -68,4 +68,3 @@ export default function StatusTable({ rows, tech }) {
       </table>
     </div>
   );
-}
