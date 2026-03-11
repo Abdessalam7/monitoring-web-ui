@@ -47,7 +47,12 @@ function BarTooltip({ active, payload, label }) {
 
 export default function UptimeChart({ history }) {
   const globalData = useMemo(() => {
-    return history.map((snap) => ({
+    const byMinute = new Map();
+    for (const snap of history) {
+      const key = Math.floor(snap.ts / 60000) * 60000;
+      if (!byMinute.has(key)) byMinute.set(key, snap);
+    }
+    return [...byMinute.values()].map((snap) => ({
       ts:     snap.ts,
       ok:     snap.rows.filter((r) => r.ok).length,
       ko:     snap.rows.filter((r) => !r.ok).length,
@@ -63,7 +68,12 @@ export default function UptimeChart({ history }) {
   }, [history]);
 
   const perClientData = useMemo(() => {
-    return history.map((snap) => {
+    const byMinute = new Map();
+    for (const snap of history) {
+      const key = Math.floor(snap.ts / 60000) * 60000;
+      if (!byMinute.has(key)) byMinute.set(key, snap);
+    }
+    return [...byMinute.values()].map((snap) => {
       const point = { ts: snap.ts };
       clients.forEach((c) => {
         const cRows = snap.rows.filter((r) => r.client === c);
