@@ -282,6 +282,23 @@ tbody tr:hover { background: #f0faf5; }
   flex-direction: column;
   gap: 4px;
   box-shadow: var(--shadow);
+  cursor: pointer;
+  transition: transform 0.12s, box-shadow 0.12s, border-color 0.12s;
+}
+
+.kpi-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.10);
+}
+
+.kpi-card.kpi-active {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(0,145,90,0.2);
+}
+
+.kpi-card.kpi-ko.kpi-active {
+  border-color: var(--ko);
+  box-shadow: 0 0 0 2px rgba(224,53,53,0.2);
 }
 
 .kpi-card.kpi-ok { border-top: 3px solid var(--ok); }
