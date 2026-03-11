@@ -5,7 +5,7 @@ import StatusTable from "./components/StatusTable.jsx";
 import { fetchStatus } from "./api.js";
 import "./styles/global.css";
 
-const REFRESH_INTERVAL = 300_000; // 5 minutes
+const REFRESH_INTERVAL = 300_000;
 
 function flattenData(data) {
   const rows = [];
@@ -19,32 +19,31 @@ function flattenData(data) {
   return rows;
 }
 
-function KpiCards({ rows }) {
+function KpiCards({ rows, activeCard, onCardClick }) {
   const total  = rows.length;
   const ok     = rows.filter((r) => r.ok).length;
   const ko     = total - ok;
   const uptime = total > 0 ? Math.round((ok / total) * 100) : 0;
 
+  const cards = [
+    { key: "total", value: total,     label: "Total checks",  cls: "",       valueCls: "" },
+    { key: "ok",    value: ok,        label: "OK",            cls: "kpi-ok", valueCls: "kpi-value-ok" },
+    { key: "ko",    value: ko,        label: "KO",            cls: ko > 0 ? "kpi-ko" : "", valueCls: ko > 0 ? "kpi-value-ko" : "" },
+    { key: "uptime",value: `${uptime}%`, label: "Uptime",     cls: "",       valueCls: uptime === 100 ? "kpi-value-ok" : "kpi-value-ko" },
+  ];
+
   return (
     <div className="kpi-bar">
-      <div className="kpi-card">
-        <span className="kpi-value">{total}</span>
-        <span className="kpi-label">Total checks</span>
-      </div>
-      <div className="kpi-card kpi-ok">
-        <span className="kpi-value">{ok}</span>
-        <span className="kpi-label">OK</span>
-      </div>
-      <div className={`kpi-card ${ko > 0 ? "kpi-ko" : ""}`}>
-        <span className="kpi-value">{ko}</span>
-        <span className="kpi-label">KO</span>
-      </div>
-      <div className="kpi-card">
-        <span className={`kpi-value ${uptime === 100 ? "kpi-value-ok" : "kpi-value-ko"}`}>
-          {uptime}%
-        </span>
-        <span className="kpi-label">Uptime</span>
-      </div>
+      {cards.map((c) => (
+        <div
+          key={c.key}
+          className={`kpi-card ${c.cls} ${activeCard === c.key ? "kpi-active" : ""}`}
+          onClick={() => onCardClick(c.key)}
+        >
+          <span className={`kpi-value ${c.valueCls}`}>{c.value}</span>
+          <span className="kpi-label">{c.label}</span>
+        </div>
+      ))}
     </div>
   );
 }
@@ -57,9 +56,7 @@ function StatusBanner({ rows }) {
   return (
     <div className={`status-banner ${allOk ? "banner-ok" : "banner-ko"}`}>
       <span className="banner-dot" />
-      {allOk
-        ? "All systems operational"
-        : `${ko} incident${ko > 1 ? "s" : ""} detected`}
+      {allOk ? "All systems operational" : `${ko} incident${ko > 1 ? "s" : ""} detected`}
     </div>
   );
 }
@@ -76,6 +73,7 @@ export default function App() {
   const [selectedClient, setSelectedClient] = useState("");
   const [selectedEnv, setSelectedEnv]       = useState("");
   const [onlyKo, setOnlyKo]                 = useState(false);
+  const [activeCard, setActiveCard]         = useState("total");
 
   const timerRef = useRef(null);
 
@@ -100,6 +98,7 @@ export default function App() {
     setSelectedClient("");
     setSelectedEnv("");
     setOnlyKo(false);
+    setActiveCard("total");
     load(tech);
   }, [tech, load]);
 
@@ -108,6 +107,20 @@ export default function App() {
     return () => clearInterval(timerRef.current);
   }, [tech, load]);
 
+  const handleCardClick = (key) => {
+    setActiveCard(key);
+    // reset dropdowns quand on clique une card
+    setSelectedClient("");
+    setSelectedEnv("");
+    if (key === "ko")    setOnlyKo(true);
+    else                 setOnlyKo(false);
+  };
+
+  // Si on change manuellement les filtres, on désactive la card active
+  const handleClientChange = (v) => { setSelectedClient(v); setActiveCard(null); };
+  const handleEnvChange    = (v) => { setSelectedEnv(v);    setActiveCard(null); };
+  const handleOnlyKo       = (v) => { setOnlyKo(v);         setActiveCard(v ? "ko" : null); };
+
   const clients = useMemo(() => [...new Set(rows.map((r) => r.client))].sort(), [rows]);
   const envs    = useMemo(() => [...new Set(rows.map((r) => r.env))].sort(), [rows]);
 
@@ -115,8 +128,10 @@ export default function App() {
     if (selectedClient && r.client !== selectedClient) return false;
     if (selectedEnv    && r.env    !== selectedEnv)    return false;
     if (onlyKo         && r.ok)                        return false;
+    // card "ok" : afficher seulement les ok
+    if (activeCard === "ok" && !r.ok)                  return false;
     return true;
-  }), [rows, selectedClient, selectedEnv, onlyKo]);
+  }), [rows, selectedClient, selectedEnv, onlyKo, activeCard]);
 
   return (
     <div id="root">
@@ -133,7 +148,8 @@ export default function App() {
         ) : (
           <>
             <StatusBanner rows={rows} />
-            <KpiCards rows={rows} />
+
+            <KpiCards rows={rows} activeCard={activeCard} onCardClick={handleCardClick} />
 
             {generatedAt && (
               <div className="meta-bar">
@@ -146,7 +162,7 @@ export default function App() {
             <Filters
               clients={clients} envs={envs}
               selectedClient={selectedClient} selectedEnv={selectedEnv} onlyKo={onlyKo}
-              onClient={setSelectedClient} onEnv={setSelectedEnv} onOnlyKo={setOnlyKo}
+              onClient={handleClientChange} onEnv={handleEnvChange} onOnlyKo={handleOnlyKo}
               onRefresh={() => load(tech)} loading={loading} nextRefresh={nextRefresh}
             />
 
