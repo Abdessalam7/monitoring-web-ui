@@ -17,7 +17,7 @@ export default function StatusTable({ rows, tech }) {
         <table>
           <tbody>
             <tr className="empty-row">
-              <td colSpan={hasComponents ? 12 : 8}>No results match the current filters.</td>
+              <td colSpan={hasComponents ? 11 : 7}>No results match the current filters.</td>
             </tr>
           </tbody>
         </table>
@@ -37,7 +37,6 @@ export default function StatusTable({ rows, tech }) {
             <th>Namespace</th>
             <th>Status</th>
             <th>HTTP</th>
-            <th>Latency</th>
             {hasComponents && (
               <>
                 <th>Scheduler</th>
@@ -58,7 +57,6 @@ export default function StatusTable({ rows, tech }) {
               <td className="cell-mono">{row.namespace}</td>
               <td><StatusBadge ok={row.ok} /></td>
               <td className="cell-mono">{row.status_code}</td>
-              <td className="cell-latency">{row.latency_ms} ms</td>
               {hasComponents && AIRFLOW_COMPONENTS.map((key) => (
                 <td key={key}>
                   <ComponentBadge component={row.components?.[key]} />
