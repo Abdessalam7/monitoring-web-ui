@@ -45,10 +45,10 @@ function KpiCards({ rows, activeCard, onCardClick }) {
   const uptime = total > 0 ? Math.round((ok / total) * 100) : 0;
 
   const cards = [
-    { key: "total",  value: total,        label: "Total checks", cls: "",                       valueCls: "" },
-    { key: "ok",     value: ok,           label: "OK",           cls: "kpi-ok",                 valueCls: "kpi-value-ok" },
-    { key: "ko",     value: ko,           label: "KO",           cls: ko > 0 ? "kpi-ko" : "",   valueCls: ko > 0 ? "kpi-value-ko" : "" },
-    { key: "uptime", value: `${uptime}%`, label: "Uptime",       cls: "",                       valueCls: uptime === 100 ? "kpi-value-ok" : "kpi-value-ko" },
+    { key: "total",  value: total,        label: "Total checks", cls: "",                     valueCls: "" },
+    { key: "ok",     value: ok,           label: "OK",           cls: "kpi-ok",               valueCls: "kpi-value-ok" },
+    { key: "ko",     value: ko,           label: "KO",           cls: ko > 0 ? "kpi-ko" : "", valueCls: ko > 0 ? "kpi-value-ko" : "" },
+    { key: "uptime", value: `${uptime}%`, label: "Uptime",       cls: "",                     valueCls: uptime === 100 ? "kpi-value-ok" : "kpi-value-ko" },
   ];
 
   return (
@@ -79,6 +79,76 @@ function StatusBanner({ rows }) {
   );
 }
 
+function ClientEnvCards({ rows, activeFilter, onFilter }) {
+  const clients = useMemo(() => {
+    const map = {};
+    for (const r of rows) {
+      if (!map[r.client]) map[r.client] = { ok: 0, ko: 0 };
+      r.ok ? map[r.client].ok++ : map[r.client].ko++;
+    }
+    return Object.entries(map).sort(([a], [b]) => a.localeCompare(b));
+  }, [rows]);
+
+  const envs = useMemo(() => {
+    const map = {};
+    for (const r of rows) {
+      if (!map[r.env]) map[r.env] = { ok: 0, ko: 0 };
+      r.ok ? map[r.env].ok++ : map[r.env].ko++;
+    }
+    return Object.entries(map).sort(([a], [b]) => a.localeCompare(b));
+  }, [rows]);
+
+  return (
+    <div className="ce-section">
+      <div className="ce-group">
+        <span className="ce-group-label">By client</span>
+        <div className="ce-cards">
+          {clients.map(([name, stats]) => {
+            const isActive = activeFilter?.type === "client" && activeFilter.value === name;
+            const hasKo    = stats.ko > 0;
+            return (
+              <div
+                key={name}
+                className={`ce-card ${hasKo ? "ce-card-ko" : "ce-card-ok"} ${isActive ? "ce-card-active" : ""}`}
+                onClick={() => onFilter(isActive ? null : { type: "client", value: name })}
+              >
+                <span className="ce-name">{name}</span>
+                <div className="ce-badges">
+                  <span className="ce-badge ce-ok">✓ {stats.ok}</span>
+                  {stats.ko > 0 && <span className="ce-badge ce-ko">✗ {stats.ko}</span>}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="ce-group">
+        <span className="ce-group-label">By environment</span>
+        <div className="ce-cards">
+          {envs.map(([name, stats]) => {
+            const isActive = activeFilter?.type === "env" && activeFilter.value === name;
+            const hasKo    = stats.ko > 0;
+            return (
+              <div
+                key={name}
+                className={`ce-card ${hasKo ? "ce-card-ko" : "ce-card-ok"} ${isActive ? "ce-card-active" : ""}`}
+                onClick={() => onFilter(isActive ? null : { type: "env", value: name })}
+              >
+                <span className="ce-name">{name}</span>
+                <div className="ce-badges">
+                  <span className="ce-badge ce-ok">✓ {stats.ok}</span>
+                  {stats.ko > 0 && <span className="ce-badge ce-ko">✗ {stats.ko}</span>}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
   const [tech, setTech]               = useState("airflow");
   const [rows, setRows]               = useState([]);
@@ -94,6 +164,7 @@ export default function App() {
   const [selectedEnv, setSelectedEnv]       = useState("");
   const [onlyKo, setOnlyKo]                 = useState(false);
   const [activeCard, setActiveCard]         = useState("total");
+  const [activeFilter, setActiveFilter]     = useState(null);
 
   const timerRef = useRef(null);
 
@@ -106,7 +177,6 @@ export default function App() {
       setRows(newRows);
       setSource(source);
       setGeneratedAt(data.generated_at);
-
       const snap = { ts: Date.now(), rows: newRows };
       setHistory((prev) => {
         const cutoff = Date.now() - HISTORY_MAX_HOURS * 60 * 60 * 1000;
@@ -128,6 +198,7 @@ export default function App() {
     setSelectedEnv("");
     setOnlyKo(false);
     setActiveCard("total");
+    setActiveFilter(null);
     const h = loadHistory(tech);
     setHistory(h);
     load(tech);
@@ -142,12 +213,21 @@ export default function App() {
     setActiveCard(key);
     setSelectedClient("");
     setSelectedEnv("");
-    if (key === "ko") setOnlyKo(true);
-    else              setOnlyKo(false);
+    setActiveFilter(null);
+    setOnlyKo(key === "ko");
   };
 
-  const handleClientChange = (v) => { setSelectedClient(v); setActiveCard(null); };
-  const handleEnvChange    = (v) => { setSelectedEnv(v);    setActiveCard(null); };
+  const handleCeFilter = (filter) => {
+    setActiveFilter(filter);
+    setActiveCard(null);
+    setOnlyKo(false);
+    if (!filter)                        { setSelectedClient(""); setSelectedEnv(""); }
+    else if (filter.type === "client")  { setSelectedClient(filter.value); setSelectedEnv(""); }
+    else if (filter.type === "env")     { setSelectedEnv(filter.value);    setSelectedClient(""); }
+  };
+
+  const handleClientChange = (v) => { setSelectedClient(v); setActiveCard(null); setActiveFilter(null); };
+  const handleEnvChange    = (v) => { setSelectedEnv(v);    setActiveCard(null); setActiveFilter(null); };
   const handleOnlyKo       = (v) => { setOnlyKo(v);         setActiveCard(v ? "ko" : null); };
 
   const clients = useMemo(() => [...new Set(rows.map((r) => r.client))].sort(), [rows]);
@@ -177,6 +257,7 @@ export default function App() {
           <>
             <StatusBanner rows={rows} />
             <KpiCards rows={rows} activeCard={activeCard} onCardClick={handleCardClick} />
+            <ClientEnvCards rows={rows} activeFilter={activeFilter} onFilter={handleCeFilter} />
 
             <div className="section-toggle-bar">
               <button
@@ -184,9 +265,7 @@ export default function App() {
                 onClick={() => setShowHistory((v) => !v)}
               >
                 {showHistory ? "▾" : "▸"} Uptime history (24h)
-                {history.length > 0 && (
-                  <span className="history-count">{history.length} snapshots</span>
-                )}
+                {history.length > 0 && <span className="history-count">{history.length} snapshots</span>}
               </button>
             </div>
 
