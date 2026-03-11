@@ -189,11 +189,6 @@ tbody tr:hover { background: #f0faf5; }
 
 .cell-label { font-weight: 500; color: var(--text); }
 
-.cell-latency {
-  font-size: 13px;
-  color: var(--text-dim);
-}
-
 /* ── Badge ────────────────────────────────────────── */
 .badge {
   display: inline-flex;
