@@ -417,6 +417,118 @@ tbody tr:hover { background: #f0faf5; }
 
 .tooltip-wrap:hover .tooltip-box { display: block; }
 
+/* ── View toggle ──────────────────────────────────── */
+.view-toggle {
+  display: flex;
+  gap: 4px;
+}
+
+.view-btn {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text-dim);
+  font-family: var(--sans);
+  font-size: 12px;
+  font-weight: 500;
+  padding: 4px 10px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.view-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+.view-btn-active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.view-btn-active:hover {
+  background: var(--accent-hover);
+  color: #fff;
+}
+
+/* ── Accordion ────────────────────────────────────── */
+.accordion { display: flex; flex-direction: column; }
+
+.accordion-section {
+  border-bottom: 1px solid var(--border);
+}
+
+.accordion-section:last-child { border-bottom: none; }
+
+.accordion-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  cursor: pointer;
+  user-select: none;
+  background: #f8f9fb;
+  transition: background 0.12s;
+}
+
+.accordion-header:hover { background: #f0faf5; }
+
+.accordion-chevron {
+  font-size: 14px;
+  color: var(--text-dim);
+  width: 14px;
+  flex-shrink: 0;
+}
+
+.accordion-client {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+  min-width: 80px;
+}
+
+.accordion-stats {
+  display: flex;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.acc-stat {
+  font-size: 12px;
+  font-weight: 500;
+  padding: 2px 8px;
+  border-radius: 20px;
+}
+
+.acc-ok    { background: var(--ok-bg);  color: var(--ok); }
+.acc-ko    { background: var(--ko-bg);  color: var(--ko); }
+.acc-total { background: #eef0f4; color: var(--text-dim); }
+
+.accordion-body table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.accordion-body thead tr {
+  border-bottom: 1px solid var(--border);
+}
+
+.accordion-body th {
+  background: #fafbfc;
+  padding: 8px 16px;
+  padding-left: 44px;
+}
+
+.accordion-body td {
+  padding: 9px 16px;
+  padding-left: 44px;
+  border-bottom: 1px solid var(--border);
+}
+
+.accordion-body tbody tr:last-child td { border-bottom: none; }
+.accordion-body tbody tr:hover { background: #f0faf5; }
+.accordion-body tbody tr.row-ko { background: rgba(224,53,53,0.03); }
+.accordion-body tbody tr.row-ko:hover { background: rgba(224,53,53,0.07); }
+
 /* ── KO row highlight ─────────────────────────────── */
 tbody tr.row-ko { background: rgba(224,53,53,0.03); }
 tbody tr.row-ko:hover { background: rgba(224,53,53,0.07); }
