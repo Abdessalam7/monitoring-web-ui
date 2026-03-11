@@ -2,10 +2,13 @@ import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import TabBar from "./components/TabBar.jsx";
 import Filters from "./components/Filters.jsx";
 import StatusTable from "./components/StatusTable.jsx";
+import UptimeChart from "./components/UptimeChart.jsx";
 import { fetchStatus } from "./api.js";
 import "./styles/global.css";
 
 const REFRESH_INTERVAL = 300_000;
+const HISTORY_MAX_HOURS = 24;
+const HISTORY_KEY = (tech) => `smoke_history_${tech}`;
 
 function flattenData(data) {
   const rows = [];
@@ -19,6 +22,22 @@ function flattenData(data) {
   return rows;
 }
 
+function loadHistory(tech) {
+  try {
+    const raw = localStorage.getItem(HISTORY_KEY(tech));
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    const cutoff = Date.now() - HISTORY_MAX_HOURS * 60 * 60 * 1000;
+    return parsed.filter((s) => s.ts >= cutoff);
+  } catch { return []; }
+}
+
+function saveHistory(tech, history) {
+  try {
+    localStorage.setItem(HISTORY_KEY(tech), JSON.stringify(history));
+  } catch {}
+}
+
 function KpiCards({ rows, activeCard, onCardClick }) {
   const total  = rows.length;
   const ok     = rows.filter((r) => r.ok).length;
@@ -26,10 +45,10 @@ function KpiCards({ rows, activeCard, onCardClick }) {
   const uptime = total > 0 ? Math.round((ok / total) * 100) : 0;
 
   const cards = [
-    { key: "total", value: total,     label: "Total checks",  cls: "",       valueCls: "" },
-    { key: "ok",    value: ok,        label: "OK",            cls: "kpi-ok", valueCls: "kpi-value-ok" },
-    { key: "ko",    value: ko,        label: "KO",            cls: ko > 0 ? "kpi-ko" : "", valueCls: ko > 0 ? "kpi-value-ko" : "" },
-    { key: "uptime",value: `${uptime}%`, label: "Uptime",     cls: "",       valueCls: uptime === 100 ? "kpi-value-ok" : "kpi-value-ko" },
+    { key: "total",  value: total,        label: "Total checks", cls: "",                       valueCls: "" },
+    { key: "ok",     value: ok,           label: "OK",           cls: "kpi-ok",                 valueCls: "kpi-value-ok" },
+    { key: "ko",     value: ko,           label: "KO",           cls: ko > 0 ? "kpi-ko" : "",   valueCls: ko > 0 ? "kpi-value-ko" : "" },
+    { key: "uptime", value: `${uptime}%`, label: "Uptime",       cls: "",                       valueCls: uptime === 100 ? "kpi-value-ok" : "kpi-value-ko" },
   ];
 
   return (
@@ -52,7 +71,6 @@ function StatusBanner({ rows }) {
   if (rows.length === 0) return null;
   const ko = rows.filter((r) => !r.ok).length;
   const allOk = ko === 0;
-
   return (
     <div className={`status-banner ${allOk ? "banner-ok" : "banner-ko"}`}>
       <span className="banner-dot" />
@@ -69,6 +87,8 @@ export default function App() {
   const [loading, setLoading]         = useState(false);
   const [error, setError]             = useState(null);
   const [nextRefresh, setNextRefresh] = useState(Date.now() + REFRESH_INTERVAL);
+  const [history, setHistory]         = useState(() => loadHistory("airflow"));
+  const [showHistory, setShowHistory] = useState(false);
 
   const [selectedClient, setSelectedClient] = useState("");
   const [selectedEnv, setSelectedEnv]       = useState("");
@@ -82,9 +102,18 @@ export default function App() {
     setError(null);
     try {
       const { source, data } = await fetchStatus(currentTech);
-      setRows(flattenData(data));
+      const newRows = flattenData(data);
+      setRows(newRows);
       setSource(source);
       setGeneratedAt(data.generated_at);
+
+      const snap = { ts: Date.now(), rows: newRows };
+      setHistory((prev) => {
+        const cutoff = Date.now() - HISTORY_MAX_HOURS * 60 * 60 * 1000;
+        const updated = [...prev.filter((s) => s.ts >= cutoff), snap];
+        saveHistory(currentTech, updated);
+        return updated;
+      });
     } catch (e) {
       setError(e.message);
       setRows([]);
@@ -99,6 +128,8 @@ export default function App() {
     setSelectedEnv("");
     setOnlyKo(false);
     setActiveCard("total");
+    const h = loadHistory(tech);
+    setHistory(h);
     load(tech);
   }, [tech, load]);
 
@@ -109,14 +140,12 @@ export default function App() {
 
   const handleCardClick = (key) => {
     setActiveCard(key);
-    // reset dropdowns quand on clique une card
     setSelectedClient("");
     setSelectedEnv("");
-    if (key === "ko")    setOnlyKo(true);
-    else                 setOnlyKo(false);
+    if (key === "ko") setOnlyKo(true);
+    else              setOnlyKo(false);
   };
 
-  // Si on change manuellement les filtres, on désactive la card active
   const handleClientChange = (v) => { setSelectedClient(v); setActiveCard(null); };
   const handleEnvChange    = (v) => { setSelectedEnv(v);    setActiveCard(null); };
   const handleOnlyKo       = (v) => { setOnlyKo(v);         setActiveCard(v ? "ko" : null); };
@@ -128,7 +157,6 @@ export default function App() {
     if (selectedClient && r.client !== selectedClient) return false;
     if (selectedEnv    && r.env    !== selectedEnv)    return false;
     if (onlyKo         && r.ok)                        return false;
-    // card "ok" : afficher seulement les ok
     if (activeCard === "ok" && !r.ok)                  return false;
     return true;
   }), [rows, selectedClient, selectedEnv, onlyKo, activeCard]);
@@ -148,8 +176,21 @@ export default function App() {
         ) : (
           <>
             <StatusBanner rows={rows} />
-
             <KpiCards rows={rows} activeCard={activeCard} onCardClick={handleCardClick} />
+
+            <div className="section-toggle-bar">
+              <button
+                className={`section-toggle-btn ${showHistory ? "section-toggle-active" : ""}`}
+                onClick={() => setShowHistory((v) => !v)}
+              >
+                {showHistory ? "▾" : "▸"} Uptime history (24h)
+                {history.length > 0 && (
+                  <span className="history-count">{history.length} snapshots</span>
+                )}
+              </button>
+            </div>
+
+            {showHistory && <UptimeChart history={history} />}
 
             {generatedAt && (
               <div className="meta-bar">
