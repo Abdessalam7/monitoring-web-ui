@@ -4,8 +4,8 @@ from typing import Optional
 
 @dataclass
 class AirflowComponent:
-    status: str                      # "healthy" | "unhealthy"
-    latest_heartbeat: Optional[str]  # ISO datetime ou null
+    status: str
+    latest_heartbeat: Optional[str]
 
 @dataclass
 class AirflowComponents:
@@ -25,7 +25,7 @@ class Check:
     ok:              bool
     latency_ms:      int
     last_checked_at: str
-    components:      Optional[AirflowComponents] = None  # None pour Spark
+    components:      Optional[AirflowComponents] = None
 
 @dataclass
 class Environment:
@@ -42,8 +42,6 @@ class StatusReport:
     generated_at: str
     clients:      list[Client] = field(default_factory=list)
 
-
-# ── Désérialisation ───────────────────────────────────
 
 def _component(d: dict) -> AirflowComponent:
     return AirflowComponent(

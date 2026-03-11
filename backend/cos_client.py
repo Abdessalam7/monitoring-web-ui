@@ -1,3 +1,6 @@
+import os
+os.environ["NO_PROXY"] = "s3.direct.eu-fr2.cloud-object-storage.appdomain.cloud"
+
 import json
 import boto3
 from botocore.exceptions import BotoCoreError, ClientError
@@ -18,7 +21,7 @@ def get_s3_client():
     )
 
 def fetch_status_from_cos(tech: str) -> dict:
-    key = f"{tech}/status.json"
+    key = f"monitoring-web/input/{tech}/status.json"
     try:
         client = get_s3_client()
         response = client.get_object(Bucket=settings.cos_bucket_name, Key=key)

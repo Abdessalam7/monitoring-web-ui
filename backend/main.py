@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from cache import cache
 from cos_client import fetch_status_from_cos
 
-app = FastAPI(title="Monitoring API", version="1.0.0")
+app = FastAPI(title="Datahub v2 Smoke Tests API", version="1.0.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -13,6 +13,10 @@ app.add_middleware(
 )
 
 SUPPORTED_TECHS = {"airflow", "spark"}
+
+@app.get("/health")
+def health():
+    return {"status": "ok"}
 
 @app.get("/api/status")
 def get_status(tech: str = Query(..., description="Technology: airflow or spark")):
@@ -33,7 +37,3 @@ def get_status(tech: str = Query(..., description="Technology: airflow or spark"
 
     cache.set(tech, data)
     return {"source": "cos", "data": data}
-
-@app.get("/health")
-def health():
-    return {"status": "ok"}
