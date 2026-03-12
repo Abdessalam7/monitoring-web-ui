@@ -10,7 +10,24 @@ const REFRESH_INTERVAL = 300_000;
 const HISTORY_MAX_HOURS = 24;
 const HISTORY_KEY = (tech) => `smoke_history_${tech}`;
 
-function flattenData(data) {
+function flattenData(data, tech) {
+  if (tech === "spark") {
+    return (data.tenants ?? []).map((t, i) => ({
+      id: `spark-${i}`,
+      client: t.business_line.toUpperCase(),
+      env: t.env,
+      tenant_name: t.tenant_name,
+      status: t.status,
+      sync_argo: t.sync_argo,
+      global_status: t.global_status,
+      all_healthy: t.all_healthy,
+      version: t.version,
+      deprecated: t.deprecated,
+      ibm_account: t.ibm_account,
+      iks_cluster: t.iks_cluster,
+      ok: t.all_healthy,
+    }));
+  }
   const rows = [];
   for (const client of data.clients ?? []) {
     for (const env of client.environments ?? []) {
@@ -175,7 +192,7 @@ export default function App() {
     setError(null);
     try {
       const { source, data } = await fetchStatus(currentTech);
-      const newRows = flattenData(data);
+      const newRows = flattenData(data, currentTech);
       setRows(newRows);
       setSource(source);
       setGeneratedAt(data.generated_at);
