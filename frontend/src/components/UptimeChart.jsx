@@ -134,7 +134,7 @@ export default function UptimeChart({ history }) {
 
       {clients.length > 1 && (
         <div className="chart-section">
-          <h3 className="chart-title">Uptime by client — last 24h</h3>
+          <h3 className="chart-title">Uptime by business line — last 24h</h3>
           <ResponsiveContainer width="100%" height={200}>
             <LineChart data={perClientData} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#dde1e9" />
