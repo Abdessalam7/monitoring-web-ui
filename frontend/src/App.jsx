@@ -28,15 +28,22 @@ function flattenData(data, tech) {
       ok: t.all_healthy,
     }));
   }
-  const rows = [];
-  for (const client of data.clients ?? []) {
-    for (const env of client.environments ?? []) {
-      for (const check of env.checks ?? []) {
-        rows.push({ ...check, client: client.name, env: env.name });
-      }
-    }
-  }
-  return rows;
+  // airflow flat format
+  return (data.instances ?? []).map((t, i) => ({
+    id: `airflow-${i}`,
+    client: t.business_line.toUpperCase(),
+    env: t.env,
+    url: t.url,
+    url_href: `https://${t.url}.data.cloud.net.intra`,
+    version: t.version,
+    http: t.http,
+    dag_processor: t.dag_processor,
+    scheduler: t.scheduler,
+    trigger: t.trigger,
+    meta_db: t.meta_db,
+    error: t.error,
+    ok: t.http === true,
+  }));
 }
 
 function loadHistory(tech) {
