@@ -7,7 +7,7 @@ import {
 
 const OK_COLOR  = "#00915a";
 const KO_COLOR  = "#e03535";
-const COLORS    = ["#00915a", "#3b82f6", "#f59e0b", "#8b5cf6", "#ec4899", "#06b6d4"];
+const COLORS    = ["#00915a", "#3b82f6", "#f59e0b", "#e03535", "#8b5cf6", "#06b6d4", "#f97316", "#84cc16", "#ec4899", "#14b8a6", "#a855f7", "#64748b"];
 
 function formatTime(ts) {
   return new Date(ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
@@ -61,13 +61,13 @@ export default function UptimeChart({ history }) {
     }));
   }, [history]);
 
-  const clients = useMemo(() => {
+  const businessLines = useMemo(() => {
     const set = new Set();
-    history.forEach((s) => s.rows.forEach((r) => set.add(r.client)));
+    history.forEach((s) => s.rows.forEach((r) => set.add(r.client)));  // r.client holds business_line value
     return [...set].sort();
   }, [history]);
 
-  const perClientData = useMemo(() => {
+  const perBLData = useMemo(() => {
     const byMinute = new Map();
     for (const snap of history) {
       const key = Math.floor(snap.ts / 60000) * 60000;
@@ -75,13 +75,13 @@ export default function UptimeChart({ history }) {
     }
     return [...byMinute.values()].map((snap) => {
       const point = { ts: snap.ts };
-      clients.forEach((c) => {
+      businessLines.forEach((c) => {
         const cRows = snap.rows.filter((r) => r.client === c);
         point[c] = pct(cRows.filter((r) => r.ok).length, cRows.length);
       });
       return point;
     });
-  }, [history, clients]);
+  }, [history, businessLines]);
 
   if (history.length < 2) {
     return (
@@ -132,17 +132,17 @@ export default function UptimeChart({ history }) {
         </div>
       </div>
 
-      {clients.length > 1 && (
+      {businessLines.length > 1 && (
         <div className="chart-section">
           <h3 className="chart-title">Uptime by business line — last 24h</h3>
           <ResponsiveContainer width="100%" height={200}>
-            <LineChart data={perClientData} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
+            <LineChart data={perBLData} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#dde1e9" />
               <XAxis dataKey="ts" tickFormatter={formatTime} tick={{ fontSize: 11 }} />
               <YAxis domain={[0, 100]} tickFormatter={(v) => `${v}%`} tick={{ fontSize: 11 }} width={40} />
               <Tooltip content={<CustomTooltip />} />
               <Legend iconSize={10} wrapperStyle={{ fontSize: 12 }} />
-              {clients.map((c, i) => (
+              {businessLines.map((c, i) => (
                 <Line
                   key={c}
                   type="monotone"
