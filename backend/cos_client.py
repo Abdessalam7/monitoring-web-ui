@@ -27,8 +27,10 @@ def fetch_status_from_cos(tech: str) -> dict:
         response = client.get_object(Bucket=settings.cos_bucket_name, Key=key)
         content = response["Body"].read().decode("utf-8")
         raw = json.loads(content)
-        report: StatusReport = parse_status_report(raw)
-        return asdict(report)
+        if tech == "airflow":
+            report: StatusReport = parse_status_report(raw)
+            return asdict(report)
+        return raw
     except ClientError as e:
         code = e.response["Error"]["Code"]
         raise RuntimeError(f"COS ClientError [{code}] for key '{key}': {e.response['Error']['Message']}")
