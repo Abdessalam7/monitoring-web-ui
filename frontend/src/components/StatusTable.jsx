@@ -81,8 +81,7 @@ function AirflowRows({ rows, sortCol, sortDir }) {
       <td><BoolBadge value={row.scheduler} /></td>
       <td><BoolBadge value={row.trigger} /></td>
       <td><BoolBadge value={row.meta_db} /></td>
-      {row.error && <td className="cell-error" colSpan={1}>{row.error}</td>}
-      {!row.error && <td />}
+      <td className="cell-error">{row.error ?? ""}</td>
     </tr>
   ));
 }
