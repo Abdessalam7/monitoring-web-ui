@@ -6,8 +6,6 @@ import boto3
 from botocore.exceptions import BotoCoreError, ClientError
 from functools import lru_cache
 from config import settings
-from models import parse_status_report, StatusReport
-from dataclasses import asdict
 
 
 @lru_cache(maxsize=1)
@@ -26,11 +24,7 @@ def fetch_status_from_cos(tech: str) -> dict:
         client = get_s3_client()
         response = client.get_object(Bucket=settings.cos_bucket_name, Key=key)
         content = response["Body"].read().decode("utf-8")
-        raw = json.loads(content)
-        if tech == "airflow":
-            report: StatusReport = parse_status_report(raw)
-            return asdict(report)
-        return raw
+        return json.loads(content)
     except ClientError as e:
         code = e.response["Error"]["Code"]
         raise RuntimeError(f"COS ClientError [{code}] for key '{key}': {e.response['Error']['Message']}")
