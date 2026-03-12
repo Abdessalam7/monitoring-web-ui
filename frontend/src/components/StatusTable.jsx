@@ -1,28 +1,8 @@
 import { useState, useMemo } from "react";
 import StatusBadge from "./StatusBadge.jsx";
 
-const AIRFLOW_COMPONENTS = ["scheduler", "metadatabase", "dag_processor", "triggerer"];
-
-function Tooltip({ text, children }) {
-  return (
-    <span className="tooltip-wrap">
-      {children}
-      {text && <span className="tooltip-box">{text}</span>}
-    </span>
-  );
-}
-
-function ComponentBadge({ component }) {
-  if (!component) return <span className="cell-mono">—</span>;
-  const ok = component.status === "healthy";
-  const heartbeat = component.latest_heartbeat
-    ? new Date(component.latest_heartbeat).toLocaleTimeString()
-    : null;
-  return (
-    <Tooltip text={heartbeat ? `Last heartbeat: ${heartbeat}` : "No heartbeat data"}>
-      <StatusBadge ok={ok} label={ok ? "healthy" : "unhealthy"} />
-    </Tooltip>
-  );
+function BoolBadge({ value }) {
+  return <StatusBadge ok={value === true} label={value === true ? "✓" : "✗"} />;
 }
 
 function TextBadge({ value, okValue }) {
@@ -36,9 +16,11 @@ function SortIcon({ col, sortCol, sortDir }) {
   return <span className="sort-icon sort-active">{sortDir === "asc" ? "↑" : "↓"}</span>;
 }
 
+// ─── CSV export ────────────────────────────────────────────────────────────────
+
 export function exportCSV(rows, tech) {
-  let headers, lines;
   const escape = (v) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+  let headers, lines;
 
   if (tech === "spark") {
     headers = ["Business Line", "Env", "Tenant Name", "Status", "Sync(ArgoCD)", "Global Status", "All Healthy", "Version", "Deprecated", "IBM Account", "IKS Cluster"];
@@ -51,15 +33,14 @@ export function exportCSV(rows, tech) {
       ].map(escape).join(",")),
     ];
   } else {
-    const compHeaders = ["Scheduler", "Metadb", "DAG Processor", "Triggerer"];
-    headers = ["Client", "Env", "Label", "Instance", "Namespace", "Status", "HTTP", ...compHeaders];
+    headers = ["Business Line", "Env", "URL", "Version", "HTTP", "DAG Processor", "Scheduler", "Trigger", "Meta DB", "Error"];
     lines = [
       headers.join(","),
-      ...rows.map((r) => {
-        const base = [r.client, r.env, r.label, r.instance, r.namespace, r.ok ? "OK" : "KO", r.status_code];
-        const comps = AIRFLOW_COMPONENTS.map((k) => r.components?.[k]?.status ?? "—");
-        return [...base, ...comps].map(escape).join(",");
-      }),
+      ...rows.map((r) => [
+        r.client, r.env, r.url, r.version,
+        r.http, r.dag_processor, r.scheduler, r.trigger, r.meta_db,
+        r.error ?? "",
+      ].map(escape).join(",")),
     ];
   }
 
@@ -72,12 +53,143 @@ export function exportCSV(rows, tech) {
   URL.revokeObjectURL(url);
 }
 
-const SORT_COLS_AIRFLOW = ["env", "ok", "status_code", "instance"];
-const SORT_COLS_SPARK   = ["env", "ok", "version", "tenant_name", "status", "sync_argo"];
+// ─── Airflow ───────────────────────────────────────────────────────────────────
 
-// ─── Spark rows ────────────────────────────────────────────────────────────────
+function AirflowRows({ rows, sortCol, sortDir }) {
+  const sorted = useMemo(() => {
+    return [...rows].sort((a, b) => {
+      let av = a[sortCol], bv = b[sortCol];
+      if (typeof av === "boolean") { av = av ? 1 : 0; bv = bv ? 1 : 0; }
+      if (av == null) return 1;
+      if (bv == null) return -1;
+      if (typeof av === "string") return sortDir === "asc" ? av.localeCompare(bv) : bv.localeCompare(av);
+      return sortDir === "asc" ? av - bv : bv - av;
+    });
+  }, [rows, sortCol, sortDir]);
 
-function SparkTableRows({ rows, sortCol, sortDir }) {
+  return sorted.map((row, i) => (
+    <tr key={row.id ?? i} className={!row.ok ? "row-ko" : ""}>
+      <td className="cell-mono">{row.env}</td>
+      <td className="cell-mono cell-tenant">
+        <a href={row.url_href} target="_blank" rel="noopener noreferrer" className="url-link">
+          {row.url}
+        </a>
+      </td>
+      <td className="cell-mono">{row.version}</td>
+      <td><BoolBadge value={row.http} /></td>
+      <td><BoolBadge value={row.dag_processor} /></td>
+      <td><BoolBadge value={row.scheduler} /></td>
+      <td><BoolBadge value={row.trigger} /></td>
+      <td><BoolBadge value={row.meta_db} /></td>
+      {row.error && <td className="cell-error" colSpan={1}>{row.error}</td>}
+      {!row.error && <td />}
+    </tr>
+  ));
+}
+
+function AirflowAccordion({ clientName, rows, sortCol, sortDir, colProps }) {
+  const [open, setOpen] = useState(true);
+  const total = rows.length;
+  const ko    = rows.filter((r) => !r.ok).length;
+  const ok    = total - ko;
+
+  return (
+    <div className="accordion-section">
+      <div className="accordion-header" onClick={() => setOpen((v) => !v)}>
+        <span className="accordion-chevron">{open ? "▾" : "▸"}</span>
+        <span className="accordion-client">{clientName}</span>
+        <span className="accordion-stats">
+          <span className="acc-stat acc-ok">✓ {ok} OK</span>
+          {ko > 0 && <span className="acc-stat acc-ko">✗ {ko} KO</span>}
+          <span className="acc-stat acc-total">{total} instances</span>
+        </span>
+      </div>
+      {open && (
+        <div className="accordion-body">
+          <table>
+            <thead>
+              <tr>
+                <th {...colProps("env")}>Env <SortIcon col="env" sortCol={sortCol} sortDir={sortDir} /></th>
+                <th {...colProps("url")}>URL <SortIcon col="url" sortCol={sortCol} sortDir={sortDir} /></th>
+                <th {...colProps("version")}>Version <SortIcon col="version" sortCol={sortCol} sortDir={sortDir} /></th>
+                <th {...colProps("http")}>HTTP <SortIcon col="http" sortCol={sortCol} sortDir={sortDir} /></th>
+                <th>DAG Processor</th>
+                <th>Scheduler</th>
+                <th>Trigger</th>
+                <th>Meta DB</th>
+                <th>Error</th>
+              </tr>
+            </thead>
+            <tbody>
+              <AirflowRows rows={rows} sortCol={sortCol} sortDir={sortDir} />
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function AirflowFlatTable({ rows, sortCol, sortDir, handleSort }) {
+  const colProps = (col) => ({
+    onClick: () => handleSort(col),
+    className: "th-sortable",
+  });
+
+  const sorted = useMemo(() => {
+    return [...rows].sort((a, b) => {
+      let av = a[sortCol], bv = b[sortCol];
+      if (typeof av === "boolean") { av = av ? 1 : 0; bv = bv ? 1 : 0; }
+      if (av == null) return 1;
+      if (bv == null) return -1;
+      if (typeof av === "string") return sortDir === "asc" ? av.localeCompare(bv) : bv.localeCompare(av);
+      return sortDir === "asc" ? av - bv : bv - av;
+    });
+  }, [rows, sortCol, sortDir]);
+
+  return (
+    <table>
+      <thead>
+        <tr>
+          <th {...colProps("client")}>Business Line <SortIcon col="client" sortCol={sortCol} sortDir={sortDir} /></th>
+          <th {...colProps("env")}>Env <SortIcon col="env" sortCol={sortCol} sortDir={sortDir} /></th>
+          <th {...colProps("url")}>URL <SortIcon col="url" sortCol={sortCol} sortDir={sortDir} /></th>
+          <th {...colProps("version")}>Version <SortIcon col="version" sortCol={sortCol} sortDir={sortDir} /></th>
+          <th {...colProps("http")}>HTTP <SortIcon col="http" sortCol={sortCol} sortDir={sortDir} /></th>
+          <th>DAG Processor</th>
+          <th>Scheduler</th>
+          <th>Trigger</th>
+          <th>Meta DB</th>
+          <th>Error</th>
+        </tr>
+      </thead>
+      <tbody>
+        {sorted.map((row, i) => (
+          <tr key={row.id ?? i} className={!row.ok ? "row-ko" : ""}>
+            <td className="cell-mono">{row.client}</td>
+            <td className="cell-mono">{row.env}</td>
+            <td className="cell-mono cell-tenant">
+              <a href={row.url_href} target="_blank" rel="noopener noreferrer" className="url-link">
+                {row.url}
+              </a>
+            </td>
+            <td className="cell-mono">{row.version}</td>
+            <td><BoolBadge value={row.http} /></td>
+            <td><BoolBadge value={row.dag_processor} /></td>
+            <td><BoolBadge value={row.scheduler} /></td>
+            <td><BoolBadge value={row.trigger} /></td>
+            <td><BoolBadge value={row.meta_db} /></td>
+            <td className="cell-error">{row.error ?? ""}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
+// ─── Spark ─────────────────────────────────────────────────────────────────────
+
+function SparkRows({ rows, sortCol, sortDir }) {
   const sorted = useMemo(() => {
     return [...rows].sort((a, b) => {
       let av = a[sortCol], bv = b[sortCol];
@@ -104,7 +216,7 @@ function SparkTableRows({ rows, sortCol, sortDir }) {
   ));
 }
 
-function SparkAccordionSection({ clientName, rows, sortCol, sortDir, colProps }) {
+function SparkAccordion({ clientName, rows, sortCol, sortDir, colProps }) {
   const [open, setOpen] = useState(true);
   const total = rows.length;
   const ko    = rows.filter((r) => !r.ok).length;
@@ -121,7 +233,6 @@ function SparkAccordionSection({ clientName, rows, sortCol, sortDir, colProps })
           <span className="acc-stat acc-total">{total} tenants</span>
         </span>
       </div>
-
       {open && (
         <div className="accordion-body">
           <table>
@@ -139,7 +250,7 @@ function SparkAccordionSection({ clientName, rows, sortCol, sortDir, colProps })
               </tr>
             </thead>
             <tbody>
-              <SparkTableRows rows={rows} sortCol={sortCol} sortDir={sortDir} />
+              <SparkRows rows={rows} sortCol={sortCol} sortDir={sortDir} />
             </tbody>
           </table>
         </div>
@@ -151,7 +262,7 @@ function SparkAccordionSection({ clientName, rows, sortCol, sortDir, colProps })
 function SparkFlatTable({ rows, sortCol, sortDir, handleSort }) {
   const colProps = (col) => ({
     onClick: () => handleSort(col),
-    className: SORT_COLS_SPARK.includes(col) ? "th-sortable" : "",
+    className: "th-sortable",
   });
 
   const sorted = useMemo(() => {
@@ -201,135 +312,11 @@ function SparkFlatTable({ rows, sortCol, sortDir, handleSort }) {
   );
 }
 
-// ─── Airflow rows ──────────────────────────────────────────────────────────────
-
-function TableRows({ rows, sortCol, sortDir }) {
-  const sorted = useMemo(() => {
-    return [...rows].sort((a, b) => {
-      let av = a[sortCol], bv = b[sortCol];
-      if (typeof av === "boolean") { av = av ? 1 : 0; bv = bv ? 1 : 0; }
-      if (typeof av === "string")  return sortDir === "asc" ? av.localeCompare(bv) : bv.localeCompare(av);
-      return sortDir === "asc" ? av - bv : bv - av;
-    });
-  }, [rows, sortCol, sortDir]);
-
-  return sorted.map((row) => (
-    <tr key={row.id} className={!row.ok ? "row-ko" : ""}>
-      <td className="cell-mono">{row.env}</td>
-      <td className="cell-label">{row.label}</td>
-      <td className="cell-mono">{row.instance}</td>
-      <td className="cell-mono">{row.namespace}</td>
-      <td><StatusBadge ok={row.ok} /></td>
-      <td className="cell-mono">{row.status_code}</td>
-      {AIRFLOW_COMPONENTS.map((key) => (
-        <td key={key}><ComponentBadge component={row.components?.[key]} /></td>
-      ))}
-    </tr>
-  ));
-}
-
-function AccordionSection({ clientName, rows, sortCol, sortDir, colProps }) {
-  const [open, setOpen] = useState(true);
-  const total = rows.length;
-  const ko    = rows.filter((r) => !r.ok).length;
-  const ok    = total - ko;
-
-  return (
-    <div className="accordion-section">
-      <div className="accordion-header" onClick={() => setOpen((v) => !v)}>
-        <span className="accordion-chevron">{open ? "▾" : "▸"}</span>
-        <span className="accordion-client">{clientName}</span>
-        <span className="accordion-stats">
-          <span className="acc-stat acc-ok">✓ {ok} OK</span>
-          {ko > 0 && <span className="acc-stat acc-ko">✗ {ko} KO</span>}
-          <span className="acc-stat acc-total">{total} checks</span>
-        </span>
-      </div>
-
-      {open && (
-        <div className="accordion-body">
-          <table>
-            <thead>
-              <tr>
-                <th {...colProps("env")}>Env <SortIcon col="env" sortCol={sortCol} sortDir={sortDir} /></th>
-                <th>Label</th>
-                <th {...colProps("instance")}>Instance <SortIcon col="instance" sortCol={sortCol} sortDir={sortDir} /></th>
-                <th>Namespace</th>
-                <th {...colProps("ok")}>Status <SortIcon col="ok" sortCol={sortCol} sortDir={sortDir} /></th>
-                <th {...colProps("status_code")}>HTTP <SortIcon col="status_code" sortCol={sortCol} sortDir={sortDir} /></th>
-                <th>Scheduler</th>
-                <th>Metadb</th>
-                <th>DAG Processor</th>
-                <th>Triggerer</th>
-              </tr>
-            </thead>
-            <tbody>
-              <TableRows rows={rows} sortCol={sortCol} sortDir={sortDir} />
-            </tbody>
-          </table>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function FlatTable({ rows, sortCol, sortDir, handleSort }) {
-  const colProps = (col) => ({
-    onClick: SORT_COLS_AIRFLOW.includes(col) || col === "client" ? () => handleSort(col) : undefined,
-    className: SORT_COLS_AIRFLOW.includes(col) || col === "client" ? "th-sortable" : "",
-  });
-
-  const sorted = useMemo(() => {
-    return [...rows].sort((a, b) => {
-      let av = a[sortCol], bv = b[sortCol];
-      if (typeof av === "boolean") { av = av ? 1 : 0; bv = bv ? 1 : 0; }
-      if (typeof av === "string")  return sortDir === "asc" ? av.localeCompare(bv) : bv.localeCompare(av);
-      return sortDir === "asc" ? av - bv : bv - av;
-    });
-  }, [rows, sortCol, sortDir]);
-
-  return (
-    <table>
-      <thead>
-        <tr>
-          <th {...colProps("client")}>Client <SortIcon col="client" sortCol={sortCol} sortDir={sortDir} /></th>
-          <th {...colProps("env")}>Env <SortIcon col="env" sortCol={sortCol} sortDir={sortDir} /></th>
-          <th>Label</th>
-          <th {...colProps("instance")}>Instance <SortIcon col="instance" sortCol={sortCol} sortDir={sortDir} /></th>
-          <th>Namespace</th>
-          <th {...colProps("ok")}>Status <SortIcon col="ok" sortCol={sortCol} sortDir={sortDir} /></th>
-          <th {...colProps("status_code")}>HTTP <SortIcon col="status_code" sortCol={sortCol} sortDir={sortDir} /></th>
-          <th>Scheduler</th>
-          <th>Metadb</th>
-          <th>DAG Processor</th>
-          <th>Triggerer</th>
-        </tr>
-      </thead>
-      <tbody>
-        {sorted.map((row) => (
-          <tr key={row.id} className={!row.ok ? "row-ko" : ""}>
-            <td className="cell-mono">{row.client}</td>
-            <td className="cell-mono">{row.env}</td>
-            <td className="cell-label">{row.label}</td>
-            <td className="cell-mono">{row.instance}</td>
-            <td className="cell-mono">{row.namespace}</td>
-            <td><StatusBadge ok={row.ok} /></td>
-            <td className="cell-mono">{row.status_code}</td>
-            {AIRFLOW_COMPONENTS.map((key) => (
-              <td key={key}><ComponentBadge component={row.components?.[key]} /></td>
-            ))}
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  );
-}
-
-// ─── Main export ───────────────────────────────────────────────────────────────
+// ─── Main ──────────────────────────────────────────────────────────────────────
 
 export default function StatusTable({ rows, tech }) {
   const isSpark = tech === "spark";
-  const [sortCol, setSortCol] = useState(isSpark ? "tenant_name" : "client");
+  const [sortCol, setSortCol] = useState("url");
   const [sortDir, setSortDir] = useState("asc");
   const [viewMode, setViewMode] = useState("accordion");
 
@@ -352,14 +339,12 @@ export default function StatusTable({ rows, tech }) {
     return Object.entries(map).sort(([a], [b]) => a.localeCompare(b));
   }, [rows]);
 
-  const colSpan = isSpark ? 9 : 11;
-
   if (rows.length === 0) {
     return (
       <div className="table-wrap">
         <table><tbody>
           <tr className="empty-row">
-            <td colSpan={colSpan}>No results match the current filters.</td>
+            <td colSpan={10}>No results match the current filters.</td>
           </tr>
         </tbody></table>
       </div>
@@ -374,7 +359,7 @@ export default function StatusTable({ rows, tech }) {
             className={`view-btn ${viewMode === "accordion" ? "view-btn-active" : ""}`}
             onClick={() => setViewMode("accordion")}
           >
-            ☰ By {isSpark ? "business line" : "client"}
+            ☰ By {isSpark ? "business line" : "business line"}
           </button>
           <button
             className={`view-btn ${viewMode === "flat" ? "view-btn-active" : ""}`}
@@ -392,13 +377,13 @@ export default function StatusTable({ rows, tech }) {
       {viewMode === "flat" ? (
         isSpark
           ? <SparkFlatTable rows={rows} sortCol={sortCol} sortDir={sortDir} handleSort={handleSort} />
-          : <FlatTable rows={rows} sortCol={sortCol} sortDir={sortDir} handleSort={handleSort} />
+          : <AirflowFlatTable rows={rows} sortCol={sortCol} sortDir={sortDir} handleSort={handleSort} />
       ) : (
         <div className="accordion">
           {groupedByClient.map(([clientName, clientRows]) => (
             isSpark
-              ? <SparkAccordionSection key={clientName} clientName={clientName} rows={clientRows} sortCol={sortCol} sortDir={sortDir} colProps={colProps} />
-              : <AccordionSection key={clientName} clientName={clientName} rows={clientRows} sortCol={sortCol} sortDir={sortDir} colProps={colProps} />
+              ? <SparkAccordion key={clientName} clientName={clientName} rows={clientRows} sortCol={sortCol} sortDir={sortDir} colProps={colProps} />
+              : <AirflowAccordion key={clientName} clientName={clientName} rows={clientRows} sortCol={sortCol} sortDir={sortDir} colProps={colProps} />
           ))}
         </div>
       )}
