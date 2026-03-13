@@ -737,3 +737,34 @@ tbody tr.row-ko:hover { background: rgba(224,53,53,0.07); }
 .cell-tenant  { max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cell-account { max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; }
 .cell-cluster { max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; }
+
+/* URL link in airflow table */
+.url-link {
+  color: var(--accent);
+  text-decoration: none;
+  font-size: 12px;
+}
+.url-link:hover {
+  text-decoration: underline;
+}
+
+/* Error cell */
+.cell-error {
+  color: var(--ko);
+  font-size: 11px;
+  max-width: 200px;
+}
+
+/* Starburst failed catalogs */
+.cell-failed { max-width: 220px; }
+.failed-catalog {
+  display: inline-block;
+  background: #fef2f2;
+  color: var(--ko);
+  border: 1px solid #fecaca;
+  border-radius: 4px;
+  font-size: 10px;
+  padding: 1px 5px;
+  margin: 1px 2px;
+  white-space: nowrap;
+}
