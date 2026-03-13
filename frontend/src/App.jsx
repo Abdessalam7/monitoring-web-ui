@@ -28,6 +28,26 @@ function flattenData(data, tech) {
       ok: t.all_healthy,
     }));
   }
+  if (tech === "starburst") {
+    return (data.instances ?? []).map((t, i) => ({
+      id: `starburst-${i}`,
+      client: t.business_line.toUpperCase(),
+      env: t.env,
+      url: t.url,
+      url_href: `https://${t.url}.data.cloud.net.intra`,
+      number_of_catalogs: t.number_of_catalogs,
+      healthy_catalogs: t.healthy_catalogs,
+      coordinator_uptime: t.coordinator_uptime,
+      coordinator_health: t.coordinator_health,
+      number_of_workers: t.number_of_workers,
+      workers_health: t.workers_health,
+      version: t.version,
+      starburst_instance_health: t.starburst_instance_health,
+      errors: t.errors,
+      failed_catalogs: t.failed_catalogs,
+      ok: t.starburst_instance_health === true && t.healthy_catalogs === t.number_of_catalogs,
+    }));
+  }
   // airflow flat format
   return (data.instances ?? []).map((t, i) => ({
     id: `airflow-${i}`,
@@ -69,7 +89,7 @@ function KpiCards({ rows, activeCard, onCardClick }) {
   const uptime = total > 0 ? Math.round((ok / total) * 100) : 0;
 
   const cards = [
-    { key: "total",  value: total,        label: "Total checks", cls: "",                     valueCls: "" },
+    { key: "total",  value: total,        label: tech === "starburst" ? "Total instances" : "Total checks", cls: "",                     valueCls: "" },
     { key: "ok",     value: ok,           label: "OK",           cls: "kpi-ok",               valueCls: "kpi-value-ok" },
     { key: "ko",     value: ko,           label: "KO",           cls: ko > 0 ? "kpi-ko" : "", valueCls: ko > 0 ? "kpi-value-ko" : "" },
     { key: "uptime", value: `${uptime}%`, label: "Uptime",       cls: "",                     valueCls: uptime === 100 ? "kpi-value-ok" : "kpi-value-ko" },
@@ -317,5 +337,3 @@ export default function App() {
         )}
       </main>
     </div>
-  );
-}
