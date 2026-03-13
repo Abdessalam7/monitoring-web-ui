@@ -17,7 +17,7 @@ function flattenData(data, tech) {
       client: t.business_line.toUpperCase(),
       env: t.env,
       tenant_name: t.tenant_name,
-      url_href: `https://${t.tenant_name}.data.cloud.net.intra`,
+      url_href: `https://${t.tenant_name.replace(/^spark-/, "sparkui-")}.data.cloud.net.intra`,
       status: t.status,
       sync_argo: t.sync_argo,
       global_status: t.global_status,
@@ -63,7 +63,7 @@ function flattenData(data, tech) {
     trigger: t.trigger,
     meta_db: t.meta_db,
     error: t.error,
-    ok: t.http === true,
+    ok: t.http === true && t.dag_processor === true && t.scheduler === true && t.trigger === true && t.meta_db === true,
   }));
 }
 
