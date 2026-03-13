@@ -32,6 +32,18 @@ export function exportCSV(rows, tech) {
         r.ibm_account, r.iks_cluster,
       ].map(escape).join(",")),
     ];
+  } else if (tech === "starburst") {
+    headers = ["Business Line", "Env", "URL", "Version", "# Catalogs", "Healthy Catalogs", "Coordinator Uptime", "Coordinator Health", "# Workers", "Workers Health", "Instance Health", "Errors", "Failed Catalogs"];
+    lines = [
+      headers.join(","),
+      ...rows.map((r) => [
+        r.client, r.env, r.url, r.version,
+        r.number_of_catalogs, r.healthy_catalogs, r.coordinator_uptime,
+        r.coordinator_health, r.number_of_workers, r.workers_health,
+        r.starburst_instance_health, r.errors ?? "",
+        (r.failed_catalogs ?? []).join("|"),
+      ].map(escape).join(",")),
+    ];
   } else {
     headers = ["Business Line", "Env", "URL", "Version", "HTTP", "DAG Processor", "Scheduler", "Trigger", "Meta DB", "Error"];
     lines = [
@@ -311,10 +323,165 @@ function SparkFlatTable({ rows, sortCol, sortDir, handleSort }) {
   );
 }
 
+
+// ─── Starburst ─────────────────────────────────────────────────────────────────
+
+function StarburstRows({ rows, sortCol, sortDir }) {
+  const sorted = useMemo(() => {
+    return [...rows].sort((a, b) => {
+      let av = a[sortCol], bv = b[sortCol];
+      if (typeof av === "boolean") { av = av ? 1 : 0; bv = bv ? 1 : 0; }
+      if (av == null) return 1;
+      if (bv == null) return -1;
+      if (typeof av === "string") return sortDir === "asc" ? av.localeCompare(bv) : bv.localeCompare(av);
+      return sortDir === "asc" ? av - bv : bv - av;
+    });
+  }, [rows, sortCol, sortDir]);
+
+  return sorted.map((row, i) => (
+    <tr key={row.id ?? i} className={!row.ok ? "row-ko" : ""}>
+      <td className="cell-mono">{row.env}</td>
+      <td className="cell-mono cell-tenant">
+        <a href={row.url_href} target="_blank" rel="noopener noreferrer" className="url-link">
+          {row.url}
+        </a>
+      </td>
+      <td className="cell-mono">{row.number_of_catalogs}</td>
+      <td className="cell-mono">{row.healthy_catalogs}</td>
+      <td className="cell-mono">{row.coordinator_uptime}</td>
+      <td><BoolBadge value={row.coordinator_health} /></td>
+      <td className="cell-mono">{row.number_of_workers}</td>
+      <td><BoolBadge value={row.workers_health} /></td>
+      <td className="cell-mono">{row.version}</td>
+      <td><BoolBadge value={row.starburst_instance_health} /></td>
+      <td className="cell-error">{row.errors ?? ""}</td>
+      <td className="cell-mono cell-failed">
+        {row.failed_catalogs?.length
+          ? row.failed_catalogs.map((c, j) => <span key={j} className="failed-catalog">{c}</span>)
+          : ""}
+      </td>
+    </tr>
+  ));
+}
+
+function StarburstAccordion({ clientName, rows, sortCol, sortDir, colProps }) {
+  const [open, setOpen] = useState(true);
+  const total = rows.length;
+  const ko    = rows.filter((r) => !r.ok).length;
+  const ok    = total - ko;
+
+  return (
+    <div className="accordion-section">
+      <div className="accordion-header" onClick={() => setOpen((v) => !v)}>
+        <span className="accordion-chevron">{open ? "▾" : "▸"}</span>
+        <span className="accordion-client">{clientName}</span>
+        <span className="accordion-stats">
+          <span className="acc-stat acc-ok">✓ {ok} OK</span>
+          {ko > 0 && <span className="acc-stat acc-ko">✗ {ko} KO</span>}
+          <span className="acc-stat acc-total">{total} instances</span>
+        </span>
+      </div>
+      {open && (
+        <div className="accordion-body">
+          <table>
+            <thead>
+              <tr>
+                <th {...colProps("env")}>Env <SortIcon col="env" sortCol={sortCol} sortDir={sortDir} /></th>
+                <th {...colProps("url")}>URL <SortIcon col="url" sortCol={sortCol} sortDir={sortDir} /></th>
+                <th {...colProps("number_of_catalogs")}># Catalogs <SortIcon col="number_of_catalogs" sortCol={sortCol} sortDir={sortDir} /></th>
+                <th {...colProps("healthy_catalogs")}>Healthy <SortIcon col="healthy_catalogs" sortCol={sortCol} sortDir={sortDir} /></th>
+                <th {...colProps("coordinator_uptime")}>Coord. Uptime <SortIcon col="coordinator_uptime" sortCol={sortCol} sortDir={sortDir} /></th>
+                <th>Coord. Health</th>
+                <th {...colProps("number_of_workers")}># Workers <SortIcon col="number_of_workers" sortCol={sortCol} sortDir={sortDir} /></th>
+                <th>Workers Health</th>
+                <th {...colProps("version")}>Version <SortIcon col="version" sortCol={sortCol} sortDir={sortDir} /></th>
+                <th>Instance Health</th>
+                <th>Errors</th>
+                <th>Failed Catalogs</th>
+              </tr>
+            </thead>
+            <tbody>
+              <StarburstRows rows={rows} sortCol={sortCol} sortDir={sortDir} />
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function StarburstFlatTable({ rows, sortCol, sortDir, handleSort }) {
+  const colProps = (col) => ({
+    onClick: () => handleSort(col),
+    className: "th-sortable",
+  });
+
+  const sorted = useMemo(() => {
+    return [...rows].sort((a, b) => {
+      let av = a[sortCol], bv = b[sortCol];
+      if (typeof av === "boolean") { av = av ? 1 : 0; bv = bv ? 1 : 0; }
+      if (av == null) return 1;
+      if (bv == null) return -1;
+      if (typeof av === "string") return sortDir === "asc" ? av.localeCompare(bv) : bv.localeCompare(av);
+      return sortDir === "asc" ? av - bv : bv - av;
+    });
+  }, [rows, sortCol, sortDir]);
+
+  return (
+    <table>
+      <thead>
+        <tr>
+          <th {...colProps("client")}>Business Line <SortIcon col="client" sortCol={sortCol} sortDir={sortDir} /></th>
+          <th {...colProps("env")}>Env <SortIcon col="env" sortCol={sortCol} sortDir={sortDir} /></th>
+          <th {...colProps("url")}>URL <SortIcon col="url" sortCol={sortCol} sortDir={sortDir} /></th>
+          <th {...colProps("number_of_catalogs")}># Catalogs <SortIcon col="number_of_catalogs" sortCol={sortCol} sortDir={sortDir} /></th>
+          <th {...colProps("healthy_catalogs")}>Healthy <SortIcon col="healthy_catalogs" sortCol={sortCol} sortDir={sortDir} /></th>
+          <th {...colProps("coordinator_uptime")}>Coord. Uptime <SortIcon col="coordinator_uptime" sortCol={sortCol} sortDir={sortDir} /></th>
+          <th>Coord. Health</th>
+          <th {...colProps("number_of_workers")}># Workers <SortIcon col="number_of_workers" sortCol={sortCol} sortDir={sortDir} /></th>
+          <th>Workers Health</th>
+          <th {...colProps("version")}>Version <SortIcon col="version" sortCol={sortCol} sortDir={sortDir} /></th>
+          <th>Instance Health</th>
+          <th>Errors</th>
+          <th>Failed Catalogs</th>
+        </tr>
+      </thead>
+      <tbody>
+        {sorted.map((row, i) => (
+          <tr key={row.id ?? i} className={!row.ok ? "row-ko" : ""}>
+            <td className="cell-mono">{row.client}</td>
+            <td className="cell-mono">{row.env}</td>
+            <td className="cell-mono cell-tenant">
+              <a href={row.url_href} target="_blank" rel="noopener noreferrer" className="url-link">
+                {row.url}
+              </a>
+            </td>
+            <td className="cell-mono">{row.number_of_catalogs}</td>
+            <td className="cell-mono">{row.healthy_catalogs}</td>
+            <td className="cell-mono">{row.coordinator_uptime}</td>
+            <td><BoolBadge value={row.coordinator_health} /></td>
+            <td className="cell-mono">{row.number_of_workers}</td>
+            <td><BoolBadge value={row.workers_health} /></td>
+            <td className="cell-mono">{row.version}</td>
+            <td><BoolBadge value={row.starburst_instance_health} /></td>
+            <td className="cell-error">{row.errors ?? ""}</td>
+            <td className="cell-mono cell-failed">
+              {row.failed_catalogs?.length
+                ? row.failed_catalogs.map((c, j) => <span key={j} className="failed-catalog">{c}</span>)
+                : ""}
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
 // ─── Main ──────────────────────────────────────────────────────────────────────
 
 export default function StatusTable({ rows, tech }) {
   const isSpark = tech === "spark";
+  const isStarburst = tech === "starburst";
   const [sortCol, setSortCol] = useState("url");
   const [sortDir, setSortDir] = useState("asc");
   const [viewMode, setViewMode] = useState("accordion");
@@ -374,15 +541,19 @@ export default function StatusTable({ rows, tech }) {
       </div>
 
       {viewMode === "flat" ? (
-        isSpark
-          ? <SparkFlatTable rows={rows} sortCol={sortCol} sortDir={sortDir} handleSort={handleSort} />
-          : <AirflowFlatTable rows={rows} sortCol={sortCol} sortDir={sortDir} handleSort={handleSort} />
+        isStarburst
+          ? <StarburstFlatTable rows={rows} sortCol={sortCol} sortDir={sortDir} handleSort={handleSort} />
+          : isSpark
+            ? <SparkFlatTable rows={rows} sortCol={sortCol} sortDir={sortDir} handleSort={handleSort} />
+            : <AirflowFlatTable rows={rows} sortCol={sortCol} sortDir={sortDir} handleSort={handleSort} />
       ) : (
         <div className="accordion">
           {groupedByClient.map(([clientName, clientRows]) => (
-            isSpark
-              ? <SparkAccordion key={clientName} clientName={clientName} rows={clientRows} sortCol={sortCol} sortDir={sortDir} colProps={colProps} />
-              : <AirflowAccordion key={clientName} clientName={clientName} rows={clientRows} sortCol={sortCol} sortDir={sortDir} colProps={colProps} />
+            isStarburst
+              ? <StarburstAccordion key={clientName} clientName={clientName} rows={clientRows} sortCol={sortCol} sortDir={sortDir} colProps={colProps} />
+              : isSpark
+                ? <SparkAccordion key={clientName} clientName={clientName} rows={clientRows} sortCol={sortCol} sortDir={sortDir} colProps={colProps} />
+                : <AirflowAccordion key={clientName} clientName={clientName} rows={clientRows} sortCol={sortCol} sortDir={sortDir} colProps={colProps} />
           ))}
         </div>
       )}
