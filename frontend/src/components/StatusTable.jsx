@@ -215,7 +215,11 @@ function SparkRows({ rows, sortCol, sortDir }) {
   return sorted.map((row, i) => (
     <tr key={row.id ?? i} className={!row.ok ? "row-ko" : ""}>
       <td className="cell-mono">{row.env}</td>
-      <td className="cell-mono cell-tenant">{row.tenant_name}</td>
+      <td className="cell-mono cell-tenant">
+        <a href={row.url_href} target="_blank" rel="noopener noreferrer" className="url-link">
+          {row.tenant_name}
+        </a>
+      </td>
       <td><TextBadge value={row.status} okValue="Healthy" /></td>
       <td><TextBadge value={row.sync_argo} okValue="Synced" /></td>
       <td><TextBadge value={row.global_status} okValue="Synced" /></td>
