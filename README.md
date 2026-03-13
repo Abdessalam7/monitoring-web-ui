@@ -1,55 +1,182 @@
-# Smoke Monitor
+# Datahub V2 — Smoke Tests Monitoring
 
-Application de monitoring simple pour visualiser les résultats de smoke tests.
+Web application for monitoring the health of data infrastructure components (Airflow, Spark, Starburst).
 
-## Structure
+## Stack
+
+|Component |Technology                              |
+|----------|----------------------------------------|
+|Backend   |FastAPI (Python)                        |
+|Frontend  |React + Vite                            |
+|Storage   |IBM Cloud Object Storage (S3-compatible)|
+|Deployment|Docker / Kubernetes (IKS)               |
+
+## Architecture
 
 ```
-monitoring-app/
-├── backend/          # FastAPI
-├── frontend/         # React + Vite
-├── sample-data/      # Exemples JSON à uploader sur COS
-└── nginx.conf        # Config Nginx pour la prod
+datahub-v2-monitoring/
+├── backend/                  # FastAPI REST API
+│   ├── main.py               # API routes + CORS
+│   ├── cos_client.py         # JSON reader from IBM COS
+│   ├── cache.py              # In-memory cache (TTL 5 min)
+│   ├── config.py             # Environment variables
+│   └── requirements.txt
+├── frontend/                 # React/Vite app
+│   ├── src/
+│   │   ├── App.jsx               # Main component
+│   │   ├── api.js                # HTTP calls to backend
+│   │   ├── components/
+│   │   │   ├── TabBar.jsx        # Airflow / Spark / Starburst tabs
+│   │   │   ├── Filters.jsx       # Business line / environment filters
+│   │   │   ├── StatusTable.jsx   # Results table
+│   │   │   ├── StatusBadge.jsx   # OK / KO badge
+│   │   │   └── UptimeChart.jsx   # 24h uptime charts
+│   │   └── styles/global.css
+│   ├── index.html
+│   └── vite.config.js
+└── scripts/                  # Conversion utilities
 ```
 
-## Backend
+## Features
+
+- **3 tabs**: Airflow, Spark, Starburst
+- **KPI cards**: Total / OK / KO / Uptime %
+- **Filters**: by business line and environment (dev / qual / int)
+- **Accordion table**: grouped by business line, sortable columns
+- **Flat view**: standard ungrouped table
+- **CSV export**: export filtered data
+- **Uptime charts**: 24h history global and per business line (localStorage)
+- **Auto-refresh**: every 5 minutes
+- **Status banner**: global green / red indicator
+
+## COS Data Format
+
+JSON files are read from IBM COS:
+
+|Tech     |COS Path                                    |
+|---------|--------------------------------------------|
+|Airflow  |`monitoring-web/input/airflow/status.json`  |
+|Spark    |`monitoring-web/input/spark/status.json`    |
+|Starburst|`monitoring-web/input/starburst/status.json`|
+
+### Airflow Format
+
+```json
+{
+  "generated_at": "2026-03-13T10:00:00+00:00",
+  "instances": [
+    {
+      "business_line": "bcef",
+      "env": "dev",
+      "url": "astronomer-ap80414-dev-8d8300e8",
+      "version": "3.4.1",
+      "http": true,
+      "dag_processor": true,
+      "scheduler": true,
+      "trigger": true,
+      "meta_db": true,
+      "error": null
+    }
+  ]
+}
+```
+
+> Full URL is built as: `https://{url}.data.cloud.net.intra`  
+> An instance is KO if **at least one** component is `false`.
+
+### Spark Format
+
+```json
+{
+  "generated_at": "2026-03-13T10:00:00+00:00",
+  "tenants": [
+    {
+      "business_line": "bcef",
+      "env": "dev",
+      "tenant_name": "spark-ap80414-dev-80c2d1ff",
+      "status": "Healthy",
+      "sync_argo": "Synced",
+      "global_status": "Synced",
+      "all_healthy": true,
+      "version": "4.1.4",
+      "deprecated": false,
+      "ibm_account": "5c2448e5383c47eab541c46a869b3b3e",
+      "iks_cluster": "iks-ap80414-hprd-6274773f"
+    }
+  ]
+}
+```
+
+> URL is built as: `https://sparkui-{tenant_name replacing "spark-"}.data.cloud.net.intra`
+
+### Starburst Format
+
+```json
+{
+  "generated_at": "2026-03-13T10:00:00+00:00",
+  "instances": [
+    {
+      "business_line": "bcef",
+      "env": "dev",
+      "url": "starburst-ap80414-dev-8d8300e8",
+      "number_of_catalogs": 21,
+      "healthy_catalogs": 21,
+      "coordinator_uptime": "10.55d",
+      "coordinator_health": true,
+      "number_of_workers": 3,
+      "workers_health": true,
+      "version": "474-e.8",
+      "starburst_instance_health": true,
+      "errors": null,
+      "failed_catalogs": null
+    }
+  ]
+}
+```
+
+> An instance is KO if `starburst_instance_health` is `false` or `healthy_catalogs < number_of_catalogs`.
+
+## Local Setup
+
+### Prerequisites
+
+- Python 3.12+
+- Node.js 18+
+
+### Backend
 
 ```bash
 cd backend
-cp .env.example .env   # Remplir les variables COS
+cp .env.example .env   # Fill in COS credentials
 pip install -r requirements.txt
-uvicorn main:app --reload --port 8000
+python -m uvicorn main:app --reload --port 8081
 ```
 
-Variables d'environnement requises dans `.env` :
-- `COS_ENDPOINT_URL` — ex: https://s3.eu-de.cloud-object-storage.appdomain.cloud
-- `COS_ACCESS_KEY_ID`
-- `COS_SECRET_ACCESS_KEY`
-- `COS_REGION` — ex: eu-de
-- `COS_BUCKET_NAME`
-
-## Frontend
+### Frontend
 
 ```bash
 cd frontend
 npm install
-npm run dev        # Dev avec proxy → localhost:8000
-npm run build      # Build prod dans dist/
+npm run dev
+# Access: http://localhost:5173
 ```
 
-## Nginx (production)
+## Environment Variables
 
-Copier le build React dans `/usr/share/nginx/html` puis utiliser `nginx.conf`.
+`backend/.env` file:
 
-```bash
-cp -r frontend/dist/* /usr/share/nginx/html/
-nginx -c /path/to/nginx.conf
+```ini
+COS_ENDPOINT_URL=https://s3.direct.<region>.cloud-object-storage.appdomain.cloud
+COS_ACCESS_KEY_ID=<access_key>
+COS_SECRET_ACCESS_KEY=<secret_key>
+COS_REGION=us-east-1
+COS_BUCKET_NAME=<bucket_name>
 ```
 
-## Données COS
+> ⚠️ Never commit the `.env` file (included in `.gitignore`)
 
-Uploader les fichiers JSON dans le bucket avec les clés :
-- `airflow/status.json`
-- `spark/status.json`
+## Tips
 
-Des exemples sont disponibles dans `sample-data/`.
+- Clear uptime chart history: run `localStorage.clear()` in the browser console
+- Port already in use: `netstat -ano | findstr :8081` then `taskkill /PID <pid> /F`
+- Upload file to COS: `rclone copyto <file> <bucket>:monitoring-web/input/<tech>/status.json`
