@@ -82,7 +82,7 @@ function saveHistory(tech, history) {
   } catch {}
 }
 
-function KpiCards({ rows, activeCard, onCardClick }) {
+function KpiCards({ rows, tech, activeCard, onCardClick }) {
   const total  = rows.length;
   const ok     = rows.filter((r) => r.ok).length;
   const ko     = total - ok;
@@ -302,7 +302,7 @@ export default function App() {
         ) : (
           <>
             <StatusBanner rows={rows} />
-            <KpiCards rows={rows} activeCard={activeCard} onCardClick={handleCardClick} />
+            <KpiCards rows={rows} tech={tech} activeCard={activeCard} onCardClick={handleCardClick} />
             <ClientEnvCards rows={rows} activeFilter={activeFilter} onFilter={handleCeFilter} />
 
             <div className="section-toggle-bar">
@@ -337,3 +337,5 @@ export default function App() {
         )}
       </main>
     </div>
+  );
+}
