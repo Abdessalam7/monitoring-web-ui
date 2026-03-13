@@ -1,4 +1,4 @@
-const TABS = ["airflow", "spark"];
+const TABS = ["airflow", "spark", "starburst"];
 
 export default function TabBar({ active, onChange }) {
   return (
