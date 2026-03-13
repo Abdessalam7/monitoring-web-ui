@@ -17,6 +17,7 @@ function flattenData(data, tech) {
       client: t.business_line.toUpperCase(),
       env: t.env,
       tenant_name: t.tenant_name,
+      url_href: `https://${t.tenant_name}.data.cloud.net.intra`,
       status: t.status,
       sync_argo: t.sync_argo,
       global_status: t.global_status,
