@@ -1,0 +1,51 @@
+include:
+  - project: "market-place/ap43591/gitlab-templates"
+    ref: &ref develop
+    file:
+      - /integration/default.yml
+
+default:
+  tags:
+    - "iks"
+
+stages:
+  - build-and-push
+
+workflow:
+  rules:
+    - if: $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "main"
+      when: always
+      variables:
+        IMAGE_TAG: ${CI_COMMIT_REF_SLUG}
+        BUILD_ENV: hprd
+    - when: never
+
+build-and-push-backend:
+  stage: build-and-push
+  variables:
+    ALLOW_FAILURE_SECURITY: "true"
+    ALLOW_FAILURE_SIZE_CHECK: "true"
+    GLOBAL_BUILD_CONTEXT: ./backend
+    IMAGE_NAME: datahub-v2-monitoring-backend
+    VAULT_ROLE: images-datahub-v2-monitoring-ci
+  trigger:
+    strategy: depend
+    include:
+      - project: market-place/ap43591/gitlab-templates
+        ref: *ref
+        file: /pipelines/containers-build.yml
+
+build-and-push-frontend:
+  stage: build-and-push
+  variables:
+    ALLOW_FAILURE_SECURITY: "true"
+    ALLOW_FAILURE_SIZE_CHECK: "true"
+    GLOBAL_BUILD_CONTEXT: ./frontend
+    IMAGE_NAME: datahub-v2-monitoring-frontend
+    VAULT_ROLE: images-datahub-v2-monitoring-ci
+  trigger:
+    strategy: depend
+    include:
+      - project: market-place/ap43591/gitlab-templates
+        ref: *ref
+        file: /pipelines/containers-build.yml
