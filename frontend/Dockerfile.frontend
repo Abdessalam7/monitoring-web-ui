@@ -1,25 +1,29 @@
-# ── Stage 1: Build ──────────────────────────────────────────────────────────
+# — Stage 1: Build —
 FROM docker.artifactory-dogen.group.echonet/node:22-alpine AS builder
 
 ARG ARTIFACTORY_TOKEN
 ARG ARTIFACTORY_REPO_HOSTNAME
 
-ENV PIP_CONFIG_FILE=/workspace/pip.conf
-
 WORKDIR /app
 
 COPY package.json package-lock.json ./
 
-RUN echo "registry=https://${ARTIFACTORY_REPO_HOSTNAME}/artifactory/api/npm/npm" > .npmrc && \
-    echo "cafile=/etc/ssl/certs/ca-certificates.crt" >> .npmrc && \
-    echo "//\${ARTIFACTORY_REPO_HOSTNAME}/artifactory/api/npm/npm/:_authToken=${ARTIFACTORY_TOKEN}" >> .npmrc && \
-    npm install
+RUN test -n "${ARTIFACTORY_TOKEN}" \
+      || (echo "ERROR: ARTIFACTORY_TOKEN is empty" && exit 1) && \
+    test -n "${ARTIFACTORY_REPO_HOSTNAME}" \
+      || (echo "ERROR: ARTIFACTORY_REPO_HOSTNAME is empty" && exit 1) && \
+    printf "registry=https://%s/artifactory/api/npm/npm\n" "${ARTIFACTORY_REPO_HOSTNAME}" > ~/.npmrc && \
+    printf "cafile=/etc/ssl/certs/ca-certificates.crt\n" >> ~/.npmrc && \
+    printf "//%s/artifactory/api/npm/npm/:_authToken=%s\n" \
+      "${ARTIFACTORY_REPO_HOSTNAME}" "${ARTIFACTORY_TOKEN}" >> ~/.npmrc && \
+    npm ci --ignore-scripts && \
+    rm ~/.npmrc
 
 COPY . .
 
 RUN ./node_modules/.bin/vite build
 
-# ── Stage 2: Serve ──────────────────────────────────────────────────────────
+# — Stage 2: Serve —
 FROM docker.artifactory-dogen.group.echonet/nginx:alpine
 
 COPY --from=builder /app/dist /usr/share/nginx/html
