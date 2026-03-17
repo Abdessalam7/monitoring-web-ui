@@ -43,7 +43,7 @@ build-and-push-frontend:
     GLOBAL_BUILD_CONTEXT: ./frontend
     IMAGE_NAME: datahub-v2-monitoring-frontend
     VAULT_ROLE: images-datahub-v2-monitoring-ci
-    DOCKER_BUILD_ARGS: "ARTIFACTORY_TOKEN=${ARTIFACTORY_TOKEN} ARTIFACTORY_REPO_HOSTNAME=${ARTIFACTORY_REPO_HOSTNAME}"
+    KANIKO_CUSTOM_ARGS: "true"
   trigger:
     strategy: depend
     include:
