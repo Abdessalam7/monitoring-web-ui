@@ -6,7 +6,8 @@ WORKDIR /app
 
 COPY package.json package-lock.json ./
 
-RUN npm install --frozen-lockfile
+RUN npm install -g yarn && yarn install
+RUN ./node_modules/.bin/vite build
 
 COPY . .
 
