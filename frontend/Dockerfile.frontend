@@ -1,4 +1,8 @@
-FROM docker.artifactory-dogen.group.echonet/node:20-alpine AS builder
+# ── Stage 1: Build ──────────────────────────────────────────────────────────
+FROM docker.artifactory-dogen.group.echonet/node:22-alpine AS builder
+
+ARG ARTIFACTORY_TOKEN
+ARG ARTIFACTORY_REPO_HOSTNAME
 
 ENV PIP_CONFIG_FILE=/workspace/pip.conf
 
@@ -6,14 +10,16 @@ WORKDIR /app
 
 COPY package.json package-lock.json ./
 
-RUN npm install -g yarn && yarn install
-RUN ./node_modules/.bin/vite build
+RUN echo "registry=https://${ARTIFACTORY_REPO_HOSTNAME}/artifactory/api/npm/npm" > .npmrc && \
+    echo "cafile=/etc/ssl/certs/ca-certificates.crt" >> .npmrc && \
+    echo "//\${ARTIFACTORY_REPO_HOSTNAME}/artifactory/api/npm/npm/:_authToken=${ARTIFACTORY_TOKEN}" >> .npmrc && \
+    npm install
 
 COPY . .
 
 RUN ./node_modules/.bin/vite build
 
-# Stage 2
+# ── Stage 2: Serve ──────────────────────────────────────────────────────────
 FROM docker.artifactory-dogen.group.echonet/nginx:alpine
 
 COPY --from=builder /app/dist /usr/share/nginx/html
