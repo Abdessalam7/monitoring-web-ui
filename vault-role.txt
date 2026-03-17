@@ -1,9 +1,16 @@
-vault write auth/gitlab_ci_oidc/role/test-ci \
-    role_type="jwt" \
-    user_claim="sub" \
-    bound_audiences="https://vault-aud.echonet.net.intra" \
-    bound_claims_type="glob" \
-    bound_claims="project_path=market-place/a101731/pysmoke-test" \
-    token_policies="images-pysmoke-test-ci" \
-    token_ttl="1h" \
-    token_max_ttl="4h"
+cat <<EOF > /tmp/vault-role.json
+{
+  "role_type": "jwt",
+  "user_claim": "sub",
+  "bound_audiences": ["https://vault-aud.echonet.net.intra"],
+  "bound_claims_type": "glob",
+  "bound_claims": {
+    "project_path": "market-place/a101731/datahub-v2-monitoring"
+  },
+  "token_policies": ["dhbv2-monitoring-ci"],
+  "token_ttl": "1h",
+  "token_max_ttl": "4h"
+}
+EOF
+
+vault write auth/gitlab_ci_oidc/role/dhbv2-monitoring-ci @/tmp/vault-role.json
