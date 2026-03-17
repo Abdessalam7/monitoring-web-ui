@@ -5,12 +5,14 @@ ENV PIP_CONFIG_FILE=/workspace/pip.conf
 WORKDIR /app
 
 COPY package.json package-lock.json ./
-RUN npm ci
+
+RUN npm install --frozen-lockfile
 
 COPY . .
-RUN npm run build
 
-# ── Stage 2: Serve ──────────────────────────────────────────────────────────
+RUN ./node_modules/.bin/vite build
+
+# Stage 2
 FROM docker.artifactory-dogen.group.echonet/nginx:alpine
 
 COPY --from=builder /app/dist /usr/share/nginx/html
