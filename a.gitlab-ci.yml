@@ -37,13 +37,13 @@ build-and-push-backend:
 
 build-and-push-frontend:
   stage: build-and-push
-  extends: .tpl:code:npm:init
   variables:
     ALLOW_FAILURE_SECURITY: "true"
     ALLOW_FAILURE_SIZE_CHECK: "true"
     GLOBAL_BUILD_CONTEXT: ./frontend
     IMAGE_NAME: datahub-v2-monitoring-frontend
     VAULT_ROLE: images-datahub-v2-monitoring-ci
+    DOCKER_BUILD_ARGS: "ARTIFACTORY_TOKEN=${ARTIFACTORY_TOKEN} ARTIFACTORY_REPO_HOSTNAME=${ARTIFACTORY_REPO_HOSTNAME}"
   trigger:
     strategy: depend
     include:
