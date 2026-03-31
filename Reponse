@@ -1,0 +1,18 @@
+Hi Pavol,
+Thank you for the details provided — this allows us to confirm the root cause.
+Root Cause
+The trigger_dags task was killed by the Kubernetes OOM (Out Of Memory) killer — a kernel-level mechanism that terminates processes when memory consumption exceeds the container’s allocated limit. This happens outside the application layer, which explains why no error message appeared in the Airflow logs and why XCom data was never pushed.
+File sizes for the 2026-03-25 22:30 UTC run:
+• SIGE_DDOHIPP_DAILY: 144 KB
+• SIGE_DTBDOERP_DAILY: 3.7 MB
+• SIGE_DTRDOSP_DAILY: 28 MB
+• SIGE_DVDBQEP_DAILY: 3.2 MB
+• SIGE_DVDVDRP_DAILY: 19.6 MB
+• SIGE_DALPHAP_DAILY: 659 MB
+• SIGE_DCLIDEP_DAILY: 1.82 GB
+GPG decryption loads file content into memory. The 1.82 GB file, combined with memory already consumed by the worker process and the preceding files in the same task execution, exceeded the container memory limit and triggered the OOM kill.
+This is further confirmed by the task duration discrepancy: 7 minutes recorded by Airflow vs. ~2 minutes of visible logs. The 5-minute silent gap corresponds to GPG processing the large file without emitting any output, until the kernel forcibly terminated the process.
+Contributing factor
+SIGE_DALPHAP_DAILY (659 MB) was processed just before SIGE_DCLIDEP_DAILY, meaning memory was already under pressure when the 1.82 GB decryption started.
+Conclusion
+The incident was caused by the abnormally large size of SIGE_DCLIDEP_DAILY (1.82 GB) deposited on 2026-03-25, which exceeded the memory capacity of the Airflow worker container during GPG decryption. All other files in the batch are within normal processing range and were handled correctly in the subsequent run.
