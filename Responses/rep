@@ -1,0 +1,7 @@
+Here’s the usable capacity of the spark-qqln2 node pool:
+	∙	3 nodes (1 per zone, Paris 1/2/3), flavor bx2.16x64
+	∙	16 vCPU / 64 GB RAM per node
+	∙	Total raw: 48 vCPU / 192 GB RAM
+Accounting for Kubernetes system overhead (~1-2 vCPU / 4-6 GB per node):
+Effectively allocatable: ~42 vCPU / ~174 GB RAM across the pool
+Bear in mind this is shared across all concurrent Spark jobs running in the namespace — and there may be ResourceQuota limits set at namespace level that could cap this further (worth checking with kubectl describe resourcequota -n <spark-ns>).​​​​​​​​​​​​​​​​
