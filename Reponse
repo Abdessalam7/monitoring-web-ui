@@ -1,4 +1,4 @@
-ssh -o StrictHostKeyChecking=no \
-    -o ServerAliveInterval=5 \
-    user@s02vl9950513.fr.net.intra \
-    "echo test"
+kubectl get secret <nom-du-secret> -n <namespace-source> -o yaml \
+  | grep -v 'resourceVersion\|uid\|creationTimestamp\|managedFields' \
+  | sed 's/namespace: <namespace-source>/namespace: a101731-datahub/' \
+  | kubectl apply -f -
