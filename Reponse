@@ -1,7 +1,6 @@
 kubectl get secret image-pull-secret \
   -n astronomer-a101731-dev-53d53716 \
   -o yaml \
-  | grep -v 'resourceVersion\|uid\|creationTimestamp\|managedFields\|reconcile.external-secrets' \
-  | sed 's/namespace: astronomer-a101731-dev-53d53716/namespace: a101731-datahub/' \
+  | grep -v 'resourceVersion\|uid\|creationTimestamp\|managedFields\|reconcile.external-secrets\|ownerReferences\|manager\|operation\|apiVersion: v1' \
+  | sed 's/namespace: astronomer-a101731-dev-53d53716/namespace: monitoring-datahub-v2/' \
   | kubectl apply -f -
-
