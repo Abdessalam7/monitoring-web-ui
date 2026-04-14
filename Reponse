@@ -1,6 +1,15 @@
 kubectl get secret image-pull-secret \
   -n astronomer-a101731-dev-53d53716 \
-  -o yaml \
-  | grep -v 'resourceVersion\|uid\|creationTimestamp\|managedFields\|reconcile.external-secrets\|ownerReferences\|manager\|operation\|apiVersion: v1' \
-  | sed 's/namespace: astronomer-a101731-dev-53d53716/namespace: monitoring-datahub-v2/' \
-  | kubectl apply -f -
+  -o yaml | python3 -c "
+import sys, yaml
+s = yaml.safe_load(sys.stdin)
+# Nettoyer les champs problématiques
+for field in ['resourceVersion','uid','creationTimestamp','managedFields','ownerReferences','selfLink']:
+    s['metadata'].pop(field, None)
+# Nettoyer les annotations ESO
+annotations = s['metadata'].get('annotations', {})
+s['metadata']['annotations'] = {k:v for k,v in annotations.items() if 'external-secrets' not in k}
+# Changer le namespace
+s['metadata']['namespace'] = 'monitoring-datahub-v2'
+print(yaml.dump(s))
+" | kubectl apply -f -
