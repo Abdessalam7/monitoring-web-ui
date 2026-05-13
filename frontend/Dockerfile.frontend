@@ -1,19 +1,26 @@
-FROM docker.artifactory-dogen.group.echonet/node:22-alpine AS builder
+FROM registry.artifactory-dogen.group.echonet/ifs/pf/technology_expertise/te_devops_products/pf-driven-pipelines/node:17-nodesbt AS builder
+
+# CA BNP
+COPY /run/secrets/artifactory-ca.crt /usr/local/share/ca-certificates/bnp-ca.crt
+RUN update-ca-certificates && \
+    export NODE_EXTRA_CA_CERTS=/usr/local/share/ca-certificates/bnp-ca.crt
+
+# .npmrc généré à la volée
+ARG NPM_DOWNLOAD_ROOT=https://repo.artifactory-dogen.group.echonet/artifactory/npmjs-cache/npm/-/
+ARG ARTIFACTORY_CERTIFICATE=/usr/local/share/ca-certificates/bnp-ca.crt
+RUN echo "registry=${NPM_DOWNLOAD_ROOT}" > /root/.npmrc && \
+    echo "strict-ssl=false" >> /root/.npmrc && \
+    echo "ca=${ARTIFACTORY_CERTIFICATE}" >> /root/.npmrc && \
+    echo "timeout=3600000" >> /root/.npmrc
 
 WORKDIR /app
-
-ENV NODE_EXTRA_CA_CERTS=/etc/ssl/certs/ca-certificates.crt
-ENV NODE_TLS_REJECT_UNAUTHORIZED=0
-
-COPY package.json package-lock.json ./
-COPY .npmrc ./
-
-RUN npm ci --ignore-scripts
+COPY package*.json ./
+RUN npm ci
 
 COPY . .
-RUN ./node_modules/.bin/vite build
+RUN npm run build
 
-# Stage 2: Serve
+# Stage 2
 FROM docker.artifactory-dogen.group.echonet/nginx:alpine
 COPY --from=builder /app/dist /usr/share/nginx/html
 COPY nginx.conf /etc/nginx/conf.d/default.conf
