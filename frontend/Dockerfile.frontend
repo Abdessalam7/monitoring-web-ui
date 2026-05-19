@@ -1,10 +1,16 @@
 FROM docker.artifactory-dogen.group.echonet/node:22-alpine AS builder
+
+ARG ARTIFACTORY_TOKEN
+
 WORKDIR /app
-COPY package.json package-lock.json ./
+
+COPY package.json ./
 COPY .npmrc ./
-RUN npm ci --ignore-scripts
+
+RUN npm install
+
 COPY . .
-RUN npm run build
+RUN ./node_modules/.bin/vite build
 
 FROM docker.artifactory-dogen.group.echonet/nginx:alpine
 COPY --from=builder /app/dist /usr/share/nginx/html
