@@ -1,2 +1,2 @@
-import requests, json
-r = requests.get("http://localhost:8081/
+# liste à plat des routes
+curl -s http://localhost:8081/openapi.json | python3 -c "import sys,json; print('\n'.join(json.load(sys.stdin)['paths'].keys()))"
