@@ -1,0 +1,15 @@
+kubectl exec -it <nom-pod-backend> -n monitoring-datahub-v2 -- python3 -c "
+import boto3, os
+client = boto3.client(
+    's3',
+    endpoint_url=os.environ['COS_ENDPOINT_URL'],
+    aws_access_key_id=os.environ['COS_ACCESS_KEY_ID'],
+    aws_secret_access_key=os.environ['COS_SECRET_ACCESS_KEY'],
+    region_name=os.environ['COS_REGION']
+)
+response = client.get_object(
+    Bucket=os.environ['COS_BUCKET_NAME'],
+    Key='monitoring-web/input/airflow/status.json'
+)
+print(response['Body'].read().decode('utf-8')[:200])
+"
