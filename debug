@@ -1,2 +1,8 @@
-# liste à plat des routes
-curl -s http://localhost:8081/openapi.json | python3 -c "import sys,json; print('\n'.join(json.load(sys.stdin)['paths'].keys()))"
+# 1. Le manifeste Ingress effectif
+kubectl get ingress -n monitoring-datahub-v2 -o yaml
+
+# 2. Le 404 vu de l'extérieur, avec les headers
+curl -v "https://datahub-v2-monitoring-a101731-hprd.data.cloud.net.intra/api/status?tech=airflow" 2>&1 | head -60
+
+# 3. Test du /health pour comparer (existe à la racine, pas sous /api)
+curl -v "https://datahub-v2-monitoring-a101731-hprd.data.cloud.net.intra/health" 2>&1 | head -30
