@@ -1,8 +1,42 @@
-# 1. Le manifeste Ingress effectif
-kubectl get ingress -n monitoring-datahub-v2 -o yaml
-
-# 2. Le 404 vu de l'extérieur, avec les headers
-curl -v "https://datahub-v2-monitoring-a101731-hprd.data.cloud.net.intra/api/status?tech=airflow" 2>&1 | head -60
-
-# 3. Test du /health pour comparer (existe à la racine, pas sous /api)
-curl -v "https://datahub-v2-monitoring-a101731-hprd.data.cloud.net.intra/health" 2>&1 | head -30
+{{- if .Values.ingress.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: datahub-v2-ingress
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    app.kubernetes.io/instance: {{ .Release.Name }}
+  {{- with .Values.ingress.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  {{- if .Values.ingress.className }}
+  ingressClassName: {{ .Values.ingress.className }}
+  {{- end }}
+  {{- if .Values.ingress.tls }}
+  tls:
+    {{- range .Values.ingress.tls }}
+    - hosts:
+        {{- range .hosts }}
+        - {{ . | quote }}
+        {{- end }}
+      secretName: {{ .secretName }}
+    {{- end }}
+  {{- end }}
+  rules:
+    {{- range .Values.ingress.hosts }}
+    - host: {{ .host | quote }}
+      http:
+        paths:
+          {{- range .paths }}
+          - path: {{ .path }}
+            pathType: {{ .pathType }}
+            backend:
+              service:
+                name: {{ tpl .serviceName $ }}
+                port:
+                  number: {{ .servicePort }}
+          {{- end }}
+    {{- end }}
+{{- end }}
